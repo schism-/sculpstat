@@ -109,11 +109,11 @@ def drawModel(m):
 def drawBrushPath(path, idx):
     global brush_paths_colors
     glColor3f(*brush_paths_colors[idx])
-    glLineWidth(3.0)
+    glLineWidth(4.0)
     glBegin(GL_LINES)
     for k in range(len(path) - 1):
-        glVertex3f(*path[k])
-        glVertex3f(*path[k+1])
+        glVertex3f(path[k][0], path[k][2], -1.0 * path[k][1])
+        glVertex3f(path[k+1][0], path[k+1][2], -1.0 * path[k+1][1])
     glEnd()
 
     glColor3f(0.0, 0.0, 0.0)
@@ -194,7 +194,7 @@ def init(model_name, stepno):
     start = time()
 
     loadFinalCandidate(obj_path)
-    loadBrushStrokes(step_path, stepno)
+    loadBrushStrokes(step_path, stepno, 20)
 
     #for x in range(len(meshes)):
     #    loadVBO(meshes[x])
@@ -236,6 +236,8 @@ def loadBrushStrokes(step_path, stepno, window=None):
 
         brush_paths.append(path)
         brush_paths_colors.append([random.random(), random.random(), random.random()])
+        print(path)
+        print()
     else:
         for k in range(window):
             try:
