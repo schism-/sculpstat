@@ -5,8 +5,8 @@ from os.path import isfile, join
 
 from utility import common
 
-blend_files_path = "blend_files/gargoyle2"
-obj_files_path = "obj_files/gargoyle2"
+blend_files_path = "blend_files/task02"
+obj_files_path = "obj_files/task02"
 
 onlyfiles = common.get_files_from_directory(blend_files_path, ['blend'])
 
@@ -57,7 +57,10 @@ for file in onlyfiles:
                              load_ui=False,
                              use_scripts=True)
 
-    #bpy.data.objects["Plane"].modifiers["Multires"].levels = bpy.data.objects["Plane"].modifiers["Multires"].sculpt_levels
+    try:
+        bpy.data.objects["Cube"].modifiers["Multires"].levels = bpy.data.objects["Cube"].modifiers["Multires"].sculpt_levels
+    except KeyError as e:
+        print('modifier not found')
 
     #for v in views(bpy.data.window_managers['WinMan'].windows[0]):
     #    print(camera(v))

@@ -136,10 +136,22 @@ if __name__ == "__main__":
 
     print("Took %f seconds" % (end - start))
 
-    for step in final_data:
-        print(step)
-        for op in final_data[step]:
+    filtered_data = {}
+    for key, step in final_data.items():
+        for op in final_data[key]:
             if op is not None:
-                print(str(op)[:100])
+                if key in filtered_data:
+                    filtered_data[key].append(op)
+                else:
+                    filtered_data[key] = [op]
+
+    for step in filtered_data:
+        print(step)
+        for op in filtered_data[step]:
+            print(str(op)[:100])
+
+    out = open("../steps/monster/steps.json", "w")
+    json.dump(filtered_data, out, indent=4, separators=(',', ': '))
+    out.close()
 
     #get_different_ops(steps_files_path)

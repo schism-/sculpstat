@@ -19,6 +19,7 @@ class MouseInteractor(object):
         self.interface = interface
         self.zoomSlider = False
         self.zooming = False
+        self.drawMeshes = True
 
     def mouseButton( self, button, mode, x, y ):
         """Callback function for mouse button."""
@@ -127,9 +128,15 @@ class MouseInteractor(object):
         if key == b'z' and not self.zooming:
             self.zooming = True
 
+        if key == b'a' and self.drawMeshes:
+            self.drawMeshes = False
+
     def keyboardUp(self, key, x, y):
         if key == b'z' and self.zooming:
             self.zooming = False
+
+        if key == b'a' and not self.drawMeshes:
+            self.drawMeshes = True
 
 
     def registerCallbacks( self ):
