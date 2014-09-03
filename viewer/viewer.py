@@ -167,7 +167,7 @@ def changeCand():
     for x in range(len(meshes)):
         meshes_loaded.append(meshes[x])
 
-def init(model_name, stepno):
+def init(model_name, stepno, window=None):
 
     global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor, quadric
 
@@ -194,7 +194,7 @@ def init(model_name, stepno):
     start = time()
 
     loadFinalCandidate(obj_path)
-    loadBrushStrokes(step_path, stepno, 20)
+    loadBrushStrokes(step_path, stepno, window)
 
     #for x in range(len(meshes)):
     #    loadVBO(meshes[x])
@@ -340,7 +340,7 @@ def resizeWindow(width, height):
     glMatrixMode(GL_MODELVIEW)
 
 
-def mainLoop():
+def mainLoop(model_name, stepno, stepwindow=None):
     glutInit(sys.argv)
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH )
     glutInitWindowSize(*SCREEN_SIZE)
@@ -348,10 +348,7 @@ def mainLoop():
 
     window = glutCreateWindow("obj viewer 0.1")
 
-    #init("../obj_files/task01/snap001720.obj")
-    #init("../obj_files/task02/snap002619.obj")
-    #init("../obj_files/gargoyle2/snap001058.obj")
-    init("monster", 936)
+    init(model_name, stepno, stepwindow)
 
     mouseInteractor.registerCallbacks()
 
@@ -362,4 +359,7 @@ def mainLoop():
     glutMainLoop()
 
 if __name__ == "__main__":
-    mainLoop()
+    #mainLoop("task01", 1720)
+    #mainLoop("task02", 2619)
+    #mainLoop("gargoyle2", 1058)
+    mainLoop("monster", 926, 20)

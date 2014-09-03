@@ -126,7 +126,7 @@ def get_different_ops(steps_files_path):
 
 
 if __name__ == "__main__":
-    steps_files_path = "../steps/monster/steps.txt"
+    steps_files_path = "../steps/gargoyle2/steps.txt"
 
     start = time.time()
 
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         for op in filtered_data[step]:
             print(str(op)[:100])
 
-    out = open("../steps/monster/steps.json", "w")
+    out = open("../steps/gargoyle2/steps.json", "w")
     json.dump(filtered_data, out, indent=4, separators=(',', ': '))
     out.close()
 
