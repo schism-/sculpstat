@@ -112,8 +112,10 @@ def drawBrushPath(path, idx):
     glLineWidth(4.0)
     glBegin(GL_LINES)
     for k in range(len(path) - 1):
-        glVertex3f(path[k][0], path[k][2], -1.0 * path[k][1])
-        glVertex3f(path[k+1][0], path[k+1][2], -1.0 * path[k+1][1])
+        #glVertex3f(path[k][0], path[k][2], -1.0 * path[k][1])
+        #glVertex3f(path[k+1][0], path[k+1][2], -1.0 * path[k+1][1])
+        glVertex3f(path[k][0], path[k][1], path[k][2])
+        glVertex3f(path[k+1][0], path[k+1][1], path[k+1][2])
     glEnd()
 
     glColor3f(0.0, 0.0, 0.0)
@@ -208,7 +210,7 @@ def init(model_name, stepno, window=None):
 
 def loadBrushStrokes(step_path, stepno, window=None):
 
-    global brush_paths, brush_paths_colors
+    global brush_paths, brush_paths_colors, meshes
 
     f = open(step_path, 'r')
     step_file = json.load(f)
@@ -236,8 +238,8 @@ def loadBrushStrokes(step_path, stepno, window=None):
 
         brush_paths.append(path)
         brush_paths_colors.append([random.random(), random.random(), random.random()])
-        print(path)
-        print()
+        #print(path)
+        #print()
     else:
         for k in range(window):
             try:
@@ -253,21 +255,32 @@ def loadBrushStrokes(step_path, stepno, window=None):
                     zeroes = 0
                     for point in stroke_op["stroke"]:
                         if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
-                            path[idx] = point["location"]
+                            path[idx] = [point["location"][0], point["location"][2], -1.0 * point["location"][1]]
                             idx += 1
                         else:
                             zeroes += 1
                     if zeroes > 0:
                         path = path[:-zeroes]
+
+                    for p in path:
+                        neighbours = meshes[0].getNeighbours(p)
+                        for n in neighbours[:10]:
+                            idx = meshes[0].seqTrisMap[int(n[1])]
+                            for i in idx:
+                                meshes[0].trisColors[i, 0] = 0.9
+                                meshes[0].trisColors[i, 1] = 0.5
+                                meshes[0].trisColors[i, 2] = 0.5
+
+
                     brush_paths.append(path)
                     brush_paths_colors.append([random.random(), random.random(), random.random()])
-                    print(path)
-                    print()
+                    #print(path)
+                    #print()
             except KeyError as e:
                 print("Step not found")
             except TypeError as e:
                 print("ERROR")
-                print(stroke_op)
+                print(e)
 
 
 def debugStuff():
@@ -362,4 +375,4 @@ if __name__ == "__main__":
     #mainLoop("task01", 1720)
     #mainLoop("task02", 2619)
     #mainLoop("gargoyle2", 1058)
-    mainLoop("monster", 926, 20)
+    mainLoop("monster", 926, 3)

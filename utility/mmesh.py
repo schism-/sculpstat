@@ -1,5 +1,8 @@
 import math
 import numpy
+import numpy.random
+import random
+import nearpy
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
 
@@ -31,6 +34,7 @@ class mMesh:
         self.seqVertices = []
         self.seqQuadVertices = []
         self.seqTrisVertices = []
+        self.seqTrisMap = {}
 
         self.texCoords = None
         self.texCoordsAsString = None
@@ -64,6 +68,28 @@ class mMesh:
         self.VBOColors = None
         self.VBOQuadColors = None
         self.VBOTrisColors = None
+
+        self.rbp = None
+        self.engine = None
+
+    def loadANNEngine(self):
+        # Dimension of our vector space
+        dimension = 3
+
+        # Create a random binary hash with 10 bits
+        self.rbp = nearpy.hashes.RandomBinaryProjections('rbp', 10)
+
+        # Create engine with pipeline configuration
+        self.engine = nearpy.Engine(dimension, lshashes=[self.rbp])
+
+    def loadVertices(self, verts):
+        for index in range(len(verts)):
+            self.engine.store_vector(verts[index], '%d' % index)
+
+    def getNeighbours(self, query):
+        N = self.engine.neighbours(query)
+        return N
+
 
     def loadModel(self, path):
         path_parts = path.split('.')
@@ -159,6 +185,8 @@ class mMesh:
 
         self.__init__(True)
 
+        self.loadANNEngine()
+
         quad = False
         if quad:
             mult = 4
@@ -179,6 +207,7 @@ class mMesh:
         self.normalQuadCount = len(self.quads) * 4
         self.normalTrisCount = len(self.tris) * 3
 
+        self.loadVertices(self.vertices)
 
         #self.normals = numpy.zeros((self.faceCount * mult, 3), 'f')
         self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
@@ -232,6 +261,11 @@ class mMesh:
                     self.trisColors[tIndex, 0] = color_map[0][0]
                     self.trisColors[tIndex, 1] = color_map[0][1]
                     self.trisColors[tIndex, 2] = color_map[0][2]
+
+                    if v-1 not in self.seqTrisMap:
+                        self.seqTrisMap[v-1] = [tIndex]
+                    else:
+                        self.seqTrisMap[v-1].append(tIndex)
 
                     tIndex += 1
                 elif len(f) == 4:

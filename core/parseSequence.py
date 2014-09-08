@@ -2,38 +2,64 @@ import numpy as np
 import re
 import json
 import time
+import bpy
 
 from utility import common
 
 debug = False
 
+def views(window):
+    rtn = []
+    for a in window.screen.areas:
+        if a.type == 'VIEW_3D':
+            rtn.append(a)
+    return rtn
+
+
+def camera(view):
+    print(len(view.spaces))
+    look_at = view.spaces[0].region_3d.view_location
+    matrix = view.spaces[0].region_3d.view_matrix
+    camera_pos = camera_position(matrix)
+    rotation = view.spaces[0].region_3d.view_rotation
+    return look_at, camera_pos, rotation
+
+
+def camera_position(matrix):
+    """ From 4x4 matrix, calculate camera location """
+    t = (matrix[0][3], matrix[1][3], matrix[2][3])
+    r = (
+        (matrix[0][0], matrix[0][1], matrix[0][2]),
+        (matrix[1][0], matrix[1][1], matrix[1][2]),
+        (matrix[2][0], matrix[2][1], matrix[2][2])
+    )
+    rp = (
+        (-r[0][0], -r[1][0], -r[2][0]),
+        (-r[0][1], -r[1][1], -r[2][1]),
+        (-r[0][2], -r[1][2], -r[2][2])
+    )
+    output = (
+        rp[0][0] * t[0] + rp[0][1] * t[1] + rp[0][2] * t[2],
+        rp[1][0] * t[0] + rp[1][1] * t[1] + rp[1][2] * t[2],
+        rp[2][0] * t[0] + rp[2][1] * t[1] + rp[2][2] * t[2],
+    )
+    return output
+
+
 def parse_single_step_to_json(line_data):
-    no_parse = ['bpy.ops.sculpt.dynamic_topology_toggle',
-                'bpy.ops.view3d.view_persportho',
-                'bpy.ops.object.editmode_toggle',
-                'bpy.ops.view3d.smoothview',
-                'bpy.ops.screen.actionzone',
-                'bpy.ops.view3d.view_all',
-                'interface',
-                'bpy.ops.view3d.move',
-                'bpy.ops.file.execute',
-                'bpy.ops.sculpt.sculptmode_toggle',
-                'bpy.ops.file.select',
-                'bpy.ops.view3d.properties',
-                'bpy.ops.view3d.layers',
-                'bpy.ops.screen.region_scale',
-                'bpy.ops.view3d.viewnumpad',
-                'bpy.ops.view3d.view_orbit',
-                'bpy.ops.wm.save_as_mainfile',
-                'bpy.ops.file.highlight',
-                'bpy.ops.ed.undo',
-                'bpy.ops.file.select_bookmark',
-                'bpy.ops.view3d.rotate',
-                'bpy.ops.view3d.cursor3d',
-                'bpy.ops.view2d.pan',
-                'initial',
-                'bpy.ops.object.mode_set',
-                'bpy.ops.paint.mask_flood_fill',
+    no_parse = ['bpy.ops.sculpt.dynamic_topology_toggle', 'bpy.ops.view3d.view_persportho',
+                'bpy.ops.object.editmode_toggle', 'bpy.ops.view3d.smoothview',
+                'bpy.ops.screen.actionzone', 'bpy.ops.view3d.view_all',
+                'interface', 'bpy.ops.view3d.move',
+                'bpy.ops.file.execute', 'bpy.ops.sculpt.sculptmode_toggle',
+                'bpy.ops.file.select', 'bpy.ops.view3d.properties',
+                'bpy.ops.view3d.layers', 'bpy.ops.screen.region_scale',
+                'bpy.ops.view3d.viewnumpad', 'bpy.ops.view3d.view_orbit',
+                'bpy.ops.wm.save_as_mainfile', 'bpy.ops.file.highlight',
+                'bpy.ops.ed.undo', 'bpy.ops.file.select_bookmark',
+                'bpy.ops.view3d.rotate', 'bpy.ops.view3d.cursor3d',
+                'bpy.ops.view2d.pan', 'initial',
+                'bpy.ops.object.mode_set', 'bpy.ops.paint.mask_flood_fill',
                 'bpy.ops.view3d.zoom']
 
     parse = ['bpy.ops.sculpt.brush_stroke',
@@ -90,7 +116,7 @@ def parse_single_step_to_json(line_data):
         if debug:
             print('=================================================')
 
-def parse_file(files_path):
+def parse_file(model_name, files_path):
     f = open(files_path, 'r')
     data = {}
     current_step = 0
@@ -106,7 +132,35 @@ def parse_file(files_path):
 
         data[current_step].append(parse_single_step_to_json(line_data))
 
+        #parse additional data
+        camera_data = get_camera_data(model_name, current_step)
+        data[current_step].append(camera_data)
     return data
+
+def get_camera_data(model_name, stepno):
+
+    file
+
+    bpy.ops.wm.open_mainfile(filepath=file[0],
+                             filter_blender=True,
+                             filemode=8,
+                             display_type='FILE_DEFAULTDISPLAY',
+                             load_ui=False,
+                             use_scripts=True)
+
+    for v in views(bpy.data.window_managers['WinMan'].windows[0]):
+        print(camera(v))
+
+def filter_data(data):
+    filtered_data = {}
+    for key, step in data.items():
+        for op in data[key]:
+            if op is not None:
+                if key in filtered_data:
+                    filtered_data[key].append(op)
+                else:
+                    filtered_data[key] = [op]
+    return filtered_data
 
 def get_different_ops(steps_files_path):
     f = open(steps_files_path, 'r')
@@ -126,32 +180,21 @@ def get_different_ops(steps_files_path):
 
 
 if __name__ == "__main__":
-    steps_files_path = "../steps/gargoyle2/steps.txt"
+
+    model_name = "monster"
+    steps_files_path = "../steps/" + model_name + "/steps.txt"
 
     start = time.time()
-
-    final_data = parse_file(steps_files_path)
-
+    final_data = parse_file(model_name, steps_files_path)
     end = time.time()
-
     print("Took %f seconds" % (end - start))
 
-    filtered_data = {}
-    for key, step in final_data.items():
-        for op in final_data[key]:
-            if op is not None:
-                if key in filtered_data:
-                    filtered_data[key].append(op)
-                else:
-                    filtered_data[key] = [op]
-
+    filtered_data = filter_data(final_data)
     for step in filtered_data:
         print(step)
         for op in filtered_data[step]:
             print(str(op)[:100])
 
-    out = open("../steps/gargoyle2/steps.json", "w")
+    out = open("../steps/" + model_name + "/steps.json", "w")
     json.dump(filtered_data, out, indent=4, separators=(',', ': '))
     out.close()
-
-    #get_different_ops(steps_files_path)
