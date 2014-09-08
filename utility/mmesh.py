@@ -2,6 +2,7 @@ import math
 import numpy
 import numpy.random
 import random
+import time
 import nearpy
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
@@ -35,6 +36,7 @@ class mMesh:
         self.seqQuadVertices = []
         self.seqTrisVertices = []
         self.seqTrisMap = {}
+        self.seqQuadMap = {}
 
         self.texCoords = None
         self.texCoordsAsString = None
@@ -75,10 +77,8 @@ class mMesh:
     def loadANNEngine(self):
         # Dimension of our vector space
         dimension = 3
-
         # Create a random binary hash with 10 bits
         self.rbp = nearpy.hashes.RandomBinaryProjections('rbp', 10)
-
         # Create engine with pipeline configuration
         self.engine = nearpy.Engine(dimension, lshashes=[self.rbp])
 
@@ -96,7 +96,10 @@ class mMesh:
         ext = path_parts[-1]
         if (ext == 'obj' ) or (ext == 'OBJ'):
             print("Loading an OBJ model")
+            start = time.time()
             self.loadOBJModel(path)
+            print("OBJ loaded in %f" %(time.time() - start))
+            print()
         elif (ext == 'off' ) or (ext == 'OFF'):
             print("Loading an OFF model")
             #self.loadOFFModel(path, '')
@@ -199,19 +202,23 @@ class mMesh:
         self.vertices, self.faces, self.quads, self.tris = self.readOBJFile(path, quad)
 
         self.vertexCount = len(self.vertices)
-        #self.faceCount = len(self.faces)
         self.quadCount = len(self.quads)
         self.trisCount = len(self.tris)
         self.texCoordCount = len(self.vertices)
-        #self.normalCount = len(self.vertices)
         self.normalQuadCount = len(self.quads) * 4
         self.normalTrisCount = len(self.tris) * 3
 
         self.loadVertices(self.vertices)
 
-        #self.normals = numpy.zeros((self.faceCount * mult, 3), 'f')
         self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
         self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
+
+        #self.seqTrisMap = numpy.zeros((self.trisCount * 3, 20), 'i')
+        #self.seqTrisMapIdx = numpy.zeros((self.trisCount * 3, 1), 'i')
+
+        #self.seqQuadMap = numpy.zeros((self.quadCount * 4, 20), 'i')
+        #self.seqQuadMapIdx = numpy.zeros((self.quadCount * 4, 1), 'i')
+
         self.texCoords = numpy.zeros((self.faceCount * mult, 2), 'f')
 
         print("Vertices detected: " + str(self.vertexCount) + " --> " + str(len(self.vertices)))
@@ -224,32 +231,21 @@ class mMesh:
         tIndex = 0
         vIndex = 0
 
-        nIndex = 0
         ntIndex = 0
         nqIndex = 0
 
         #Initializing data for seq arrays
-        #self.seqVertices = numpy.zeros((self.faceCount * 4, 3), 'f')
         self.seqQuadVertices = numpy.zeros((self.quadCount * 4, 3), 'f')
         self.seqTrisVertices = numpy.zeros((self.trisCount * 3, 3), 'f')
 
-        #self.colors = numpy.zeros((self.faceCount * 4, 3), 'f')
         self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
         self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
-
         print("Seq vertices: %i" % (len(self.seqVertices)))
 
         for f in self.faces:
             #Create a sequential array of vertices (for rendering)
             temp = []
             for v in f:
-                #self.seqVertices[vIndex, 0] = self.vertices[v-1][0]
-                #self.seqVertices[vIndex, 1] = self.vertices[v-1][1]
-                #self.seqVertices[vIndex, 2] = self.vertices[v-1][2]
-
-                #self.colors[vIndex, 0] = color_map[0][0]
-                #self.colors[vIndex, 1] = color_map[0][1]
-                #self.colors[vIndex, 2] = color_map[0][2]
                 temp.append(self.vertices[v-1])
                 vIndex += 1
 
@@ -267,6 +263,9 @@ class mMesh:
                     else:
                         self.seqTrisMap[v-1].append(tIndex)
 
+                    #self.seqTrisMap2[v-1][self.seqTrisMapIdx[v-1]] = tIndex
+                    #self.seqTrisMapIdx[v-1] = self.seqTrisMapIdx[v-1] + 1
+
                     tIndex += 1
                 elif len(f) == 4:
                     self.seqQuadVertices[qIndex, 0] = self.vertices[v-1][0]
@@ -277,16 +276,14 @@ class mMesh:
                     self.quadColors[qIndex, 1] = color_map[1][1]
                     self.quadColors[qIndex, 2] = color_map[1][2]
 
+                    if v-1 not in self.seqQuadMap:
+                        self.seqQuadMap[v-1] = [qIndex]
+                    else:
+                        self.seqQuadMap[v-1].append(qIndex)
+
                     qIndex += 1
 
             normal = self.computeNormal(temp)
-
-            #for _ in range(mult):
-            #    self.normals[nIndex, 0] = normal[0]
-            #    self.normals[nIndex, 1] = normal[1]
-            #    self.normals[nIndex, 2] = normal[2]
-            #    nIndex += 1
-
             if len(f) == 3:
                 for _ in range(3):
                     self.trisNormals[ntIndex, 0] = normal[0]
@@ -301,7 +298,6 @@ class mMesh:
                     nqIndex += 1
             fIndex += 1
 
-        #print("Normals: %d" % (len(self.normals)))
         print("Done")
 
 
@@ -311,30 +307,11 @@ class mMesh:
         ''' Generate And Bind The Vertex Buffer '''
         if g_fVBOSupported:
             '''
-            #self.VBOVertices = int(glGenBuffersARB( 1))                    # Get A Valid Name
-            glBindBufferARB( GL_ARRAY_BUFFER_ARB, self.VBOVertices )       # Bind The Buffer
-            # Load The Data
-            glBufferDataARB( GL_ARRAY_BUFFER_ARB, self.seqVertices, GL_STATIC_DRAW_ARB )
-
             # Generate And Bind The Texture Coordinate Buffer
             #self.VBOTexCoords = int(glGenBuffersARB( 1))
             #glBindBufferARB( GL_ARRAY_BUFFER_ARB, self.VBOTexCoords )
             # Load The Data
             #glBufferDataARB( GL_ARRAY_BUFFER_ARB, self.texCoords, GL_STATIC_DRAW_ARB )
-
-            self.VBONormals = int(glGenBuffersARB( 1))
-            glBindBufferARB( GL_ARRAY_BUFFER_ARB, self.VBONormals )
-            # Load The Data
-            glBufferDataARB( GL_ARRAY_BUFFER_ARB, self.normals, GL_STATIC_DRAW_ARB )
-
-            self.VBOColors = int(glGenBuffersARB( 1))
-            glBindBufferARB( GL_ARRAY_BUFFER_ARB, self.VBOColors )
-            # Load The Data
-            glBufferDataARB( GL_ARRAY_BUFFER_ARB, self.colors, GL_STATIC_DRAW_ARB )
-
-            #Our Copy Of The Data Is No Longer Necessary, It Is Safe In The Graphics Card
-            #self.vertices = None
-            #self.texCoords = None
             '''
 
             self.VBOQuadVertices = int(glGenBuffersARB( 1))

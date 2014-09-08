@@ -54,15 +54,12 @@ def loadVBO(m):
 
 def loadModel(m, path):
     m.loadModel(path)
-    #m.VBOVertices = vbo.VBO(m.seqVertices)
     m.VBOQuadVertices = vbo.VBO(m.seqQuadVertices)
     m.VBOTrisVertices = vbo.VBO(m.seqTrisVertices)
 
-    #m.VBONormals = vbo.VBO(m.normals)
     m.VBOQuadNormals = vbo.VBO(m.quadNormals)
     m.VBOTrisNormals = vbo.VBO(m.trisNormals)
 
-    #m.VBOColors = vbo.VBO(m.colors)
     m.VBOQuadColors = vbo.VBO(m.quadColors)
     m.VBOTrisColors = vbo.VBO(m.trisColors)
 
@@ -112,8 +109,6 @@ def drawBrushPath(path, idx):
     glLineWidth(4.0)
     glBegin(GL_LINES)
     for k in range(len(path) - 1):
-        #glVertex3f(path[k][0], path[k][2], -1.0 * path[k][1])
-        #glVertex3f(path[k+1][0], path[k+1][2], -1.0 * path[k+1][1])
         glVertex3f(path[k][0], path[k][1], path[k][2])
         glVertex3f(path[k+1][0], path[k+1][1], path[k+1][2])
     glEnd()
@@ -151,18 +146,16 @@ def initLightning():
 
 def loadFinalCandidate(mesh_path):
     global meshes
-    meshes = [None, ] * 1
+    meshes = [None,] * 1
     meshes[0] = mMesh(g_fVBOSupported)
     loadModel(meshes[0], mesh_path)
-    meshes = [ m for m in meshes if m is not None ]
+    meshes = [m for m in meshes if m is not None ]
 
 
 def changeCand():
     global meshes, meshes_loaded, gui_objects
-
     gui_objects[1].setIndices(indices)
     loadFinalCandidate()
-
     for x in range(len(meshes)):
         loadVBO(meshes[x])
     meshes_loaded = []
@@ -195,11 +188,13 @@ def init(model_name, stepno, window=None):
     #LOAD MODEL
     start = time()
 
+    start_lfc = time()
     loadFinalCandidate(obj_path)
-    loadBrushStrokes(step_path, stepno, window)
+    print("Models loaded in %f" %(time() - start_lfc))
 
-    #for x in range(len(meshes)):
-    #    loadVBO(meshes[x])
+    start_bs = time()
+    loadBrushStrokes(step_path, stepno, window)
+    print("Brush loaded in %f" %(time() - start_bs))
 
     for x in range(len(meshes)):
         meshes_loaded.append(meshes[x])
@@ -216,30 +211,58 @@ def loadBrushStrokes(step_path, stepno, window=None):
     step_file = json.load(f)
 
     if not window:
-        step_ops = step_file[str(stepno)]
+        try:
+            step_ops = step_file[str(stepno)]
+            stroke_op = None
+            for op in step_ops:
+                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                    stroke_op = op
+                    break
+            if stroke_op:
+                path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
+                idx = 0
+                zeroes = 0
+                for point in stroke_op["stroke"]:
+                    if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
+                        path[idx] = [point["location"][0], point["location"][2], -1.0 * point["location"][1]]
+                        idx += 1
+                    else:
+                        zeroes += 1
+                if zeroes > 0:
+                    path = path[:-zeroes]
 
-        stroke_op = None
-        for op in step_ops:
-            if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                stroke_op = op
-                break
+                for p in path:
+                    neighbours = meshes[0].getNeighbours(p)
+                    for n in neighbours:
+                        if n[2] < 20:
+                            try:
+                                idx = meshes[0].seqTrisMap[int(n[1])]
+                                for i in idx:
+                                    meshes[0].trisColors[i, 0] = 0.9
+                                    meshes[0].trisColors[i, 1] = 0.5
+                                    meshes[0].trisColors[i, 2] = 0.5
+                            except KeyError as ke:
+                                print("tri idx not found")
+                                print(ke)
 
-        path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
-        idx = 0
-        zeroes = 0
-        for point in stroke_op["stroke"]:
-            if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
-                path[idx] = point["location"]
-                idx += 1
-            else:
-                zeroes += 1
-        if zeroes > 0:
-            path = path[:-zeroes]
+                            try:
+                                idx = meshes[0].seqQuadMap[int(n[1])]
+                                for i in idx:
+                                    meshes[0].quadColors[i, 0] = 0.9
+                                    meshes[0].quadColors[i, 1] = 0.5
+                                    meshes[0].quadColors[i, 2] = 0.5
+                            except KeyError as ke:
+                                print("quad idx not found")
+                                print(ke)
 
-        brush_paths.append(path)
-        brush_paths_colors.append([random.random(), random.random(), random.random()])
-        #print(path)
-        #print()
+                brush_paths.append(path)
+                brush_paths_colors.append([random.random(), random.random(), random.random()])
+        except KeyError as e:
+            print("Step not found")
+            print(e)
+        except TypeError as e:
+            print("ERROR")
+            print(e)
     else:
         for k in range(window):
             try:
@@ -264,20 +287,33 @@ def loadBrushStrokes(step_path, stepno, window=None):
 
                     for p in path:
                         neighbours = meshes[0].getNeighbours(p)
-                        for n in neighbours[:10]:
-                            idx = meshes[0].seqTrisMap[int(n[1])]
-                            for i in idx:
-                                meshes[0].trisColors[i, 0] = 0.9
-                                meshes[0].trisColors[i, 1] = 0.5
-                                meshes[0].trisColors[i, 2] = 0.5
+                        for n in neighbours:
+                            if n[2] < 20:
+                                try:
+                                    idx = meshes[0].seqTrisMap[int(n[1])]
+                                    for i in idx:
+                                        meshes[0].trisColors[i, 0] = 0.9
+                                        meshes[0].trisColors[i, 1] = 0.5
+                                        meshes[0].trisColors[i, 2] = 0.5
+                                except KeyError as ke:
+                                    print("tri idx not found")
+                                    print(ke)
 
+                                try:
+                                    idx = meshes[0].seqQuadMap[int(n[1])]
+                                    for i in idx:
+                                        meshes[0].quadColors[i, 0] = 0.9
+                                        meshes[0].quadColors[i, 1] = 0.5
+                                        meshes[0].quadColors[i, 2] = 0.5
+                                except KeyError as ke:
+                                    print("quad idx not found")
+                                    print(ke)
 
                     brush_paths.append(path)
                     brush_paths_colors.append([random.random(), random.random(), random.random()])
-                    #print(path)
-                    #print()
             except KeyError as e:
                 print("Step not found")
+                print(e)
             except TypeError as e:
                 print("ERROR")
                 print(e)
@@ -288,7 +324,6 @@ def debugStuff():
 
 
 def drawScene():
-
     global gui_objects, meshes_loaded, quadric, draw_gui, brush_paths, mouseInteractor
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -297,6 +332,8 @@ def drawScene():
     glEnable(GL_BLEND)
     glEnable(GL_LINE_SMOOTH)
     glHint(GL_LINE_SMOOTH_HINT, GL_DONT_CARE)
+
+    glShadeModel(GL_SMOOTH)
 
     glMatrixMode( GL_PROJECTION )
     glLoadIdentity()
@@ -358,13 +395,9 @@ def mainLoop(model_name, stepno, stepwindow=None):
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH )
     glutInitWindowSize(*SCREEN_SIZE)
     glutInitWindowPosition(1000, 200)
-
     window = glutCreateWindow("obj viewer 0.1")
-
     init(model_name, stepno, stepwindow)
-
     mouseInteractor.registerCallbacks()
-
     glutDisplayFunc(drawScene)
     glutIdleFunc(drawScene)
     glutReshapeFunc(resizeWindow)
@@ -373,6 +406,6 @@ def mainLoop(model_name, stepno, stepwindow=None):
 
 if __name__ == "__main__":
     #mainLoop("task01", 1720)
-    #mainLoop("task02", 2619)
+    mainLoop("task02", 2619)
     #mainLoop("gargoyle2", 1058)
-    mainLoop("monster", 926, 3)
+    #mainLoop("monster", 926, 10)
