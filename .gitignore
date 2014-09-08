@@ -2,3 +2,6 @@
 blend_files/*
 obj_files/*
 steps/*
+numpy_data/*
+utility/__pycache__/*
+.idea/*

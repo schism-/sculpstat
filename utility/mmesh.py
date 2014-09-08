@@ -91,33 +91,30 @@ class mMesh:
         return N
 
 
-    def loadModel(self, path):
+    def loadModel(self, path, loadBrushes):
         path_parts = path.split('.')
         ext = path_parts[-1]
         if (ext == 'obj' ) or (ext == 'OBJ'):
             print("Loading an OBJ model")
             start = time.time()
-            self.loadOBJModel(path)
+            self.loadOBJModel(path, loadBrushes)
             print("OBJ loaded in %f" %(time.time() - start))
             print()
         elif (ext == 'off' ) or (ext == 'OFF'):
             print("Loading an OFF model")
             #self.loadOFFModel(path, '')
 
-    def readOBJFile(self, file_path, quad):
+    def readOBJFile(self, file_path):
         swapyz = False
         vertices = []
-        normals = []
-        texcoords = []
         faces = []
         quads = []
         tris = []
-        material = None
-
         for line in open(file_path, "r"):
             if line.startswith('#'): continue
             values = line.split()
-            if not values: continue
+            if not values:
+                continue
             if values[0] == 'v':
                 v = list(map(float, values[1:4]))
                 if swapyz:
@@ -125,42 +122,16 @@ class mMesh:
                 vertices.append(v)
             elif values[0] == 'f':
                 face = []
-                texcoords = []
-                norms = []
                 for v in values[1:]:
                     w = v.split('/')
                     face.append(int(w[0]))
-                    if len(w) >= 2 and len(w[1]) > 0:
-                        texcoords.append(int(w[1]))
-                    else:
-                        texcoords.append(0)
-                    if len(w) >= 3 and len(w[2]) > 0:
-                        norms.append(int(w[2]))
-                    else:
-                        norms.append(0)
-
-                #self.faces.append((face, norms, texcoords, material))
                 faces.append(face)
-
                 if len(face) == 4:
                     quads.append(face)
                 elif len(face) == 3:
                     tris.append(face)
             else:
-                pass
-            '''
-            elif values[0] == 'vn':
-                v = list(map(float, values[1:4]))
-                if swapyz:
-                    v = v[0], v[2], v[1]
-                normals.append(v)
-            elif values[0] == 'vt':
-                texcoords.append(map(float, values[1:3]))
-            elif values[0] in ('usemtl', 'usemat'):
-                pass
-            elif values[0] == 'mtllib':
-                pass
-            '''
+                continue
         return (vertices, faces, quads, tris)
 
     def computeNormal(self, temp):
@@ -184,22 +155,16 @@ class mMesh:
 
         return normal
 
-    def loadOBJModel(self, path):
+    def loadOBJModel(self, path, loadBrushes):
 
         self.__init__(True)
 
         self.loadANNEngine()
 
-        quad = False
-        if quad:
-            mult = 4
-        else:
-            mult = 3
-
         path_parts = path.split('/')
         self.name = (path_parts[-1].split('.'))[-2]
 
-        self.vertices, self.faces, self.quads, self.tris = self.readOBJFile(path, quad)
+        self.vertices, self.faces, self.quads, self.tris = self.readOBJFile(path)
 
         self.vertexCount = len(self.vertices)
         self.quadCount = len(self.quads)
@@ -219,7 +184,7 @@ class mMesh:
         #self.seqQuadMap = numpy.zeros((self.quadCount * 4, 20), 'i')
         #self.seqQuadMapIdx = numpy.zeros((self.quadCount * 4, 1), 'i')
 
-        self.texCoords = numpy.zeros((self.faceCount * mult, 2), 'f')
+        #self.texCoords = numpy.zeros((self.faceCount * mult, 2), 'f')
 
         print("Vertices detected: " + str(self.vertexCount) + " --> " + str(len(self.vertices)))
         print("Faces detected: " + str(self.faceCount))
@@ -258,13 +223,13 @@ class mMesh:
                     self.trisColors[tIndex, 1] = color_map[0][1]
                     self.trisColors[tIndex, 2] = color_map[0][2]
 
-                    if v-1 not in self.seqTrisMap:
-                        self.seqTrisMap[v-1] = [tIndex]
-                    else:
-                        self.seqTrisMap[v-1].append(tIndex)
-
-                    #self.seqTrisMap2[v-1][self.seqTrisMapIdx[v-1]] = tIndex
-                    #self.seqTrisMapIdx[v-1] = self.seqTrisMapIdx[v-1] + 1
+                    if loadBrushes:
+                        if v-1 not in self.seqTrisMap:
+                            self.seqTrisMap[v-1] = [tIndex]
+                        else:
+                            self.seqTrisMap[v-1].append(tIndex)
+                        #self.seqTrisMap2[v-1][self.seqTrisMapIdx[v-1]] = tIndex
+                        #self.seqTrisMapIdx[v-1] = self.seqTrisMapIdx[v-1] + 1
 
                     tIndex += 1
                 elif len(f) == 4:
@@ -276,10 +241,11 @@ class mMesh:
                     self.quadColors[qIndex, 1] = color_map[1][1]
                     self.quadColors[qIndex, 2] = color_map[1][2]
 
-                    if v-1 not in self.seqQuadMap:
-                        self.seqQuadMap[v-1] = [qIndex]
-                    else:
-                        self.seqQuadMap[v-1].append(qIndex)
+                    if loadBrushes:
+                        if v-1 not in self.seqQuadMap:
+                            self.seqQuadMap[v-1] = [qIndex]
+                        else:
+                            self.seqQuadMap[v-1].append(qIndex)
 
                     qIndex += 1
 

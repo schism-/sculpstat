@@ -40,6 +40,8 @@ drawContactPoints = False
 drawContactTriangles = False
 draw_gui = False
 
+loadBrushes = True
+
 '''
     =========== MAIN FUNCTIONS ============
 '''
@@ -52,8 +54,8 @@ def loadVBO(m):
     m.VBONormals = vbo.VBO(m.normals)
     m.VBOColors = vbo.VBO(m.colors)
 
-def loadModel(m, path):
-    m.loadModel(path)
+def loadModel(m, path, loadBrushes):
+    m.loadModel(path, loadBrushes)
     m.VBOQuadVertices = vbo.VBO(m.seqQuadVertices)
     m.VBOTrisVertices = vbo.VBO(m.seqTrisVertices)
 
@@ -144,11 +146,11 @@ def initLightning():
     glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.8, 0.8, 0.8, 1] )
     glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 20 )
 
-def loadFinalCandidate(mesh_path):
+def loadFinalCandidate(mesh_path, loadBrushes):
     global meshes
     meshes = [None,] * 1
     meshes[0] = mMesh(g_fVBOSupported)
-    loadModel(meshes[0], mesh_path)
+    loadModel(meshes[0], mesh_path, loadBrushes)
     meshes = [m for m in meshes if m is not None ]
 
 
@@ -164,23 +166,19 @@ def changeCand():
 
 def init(model_name, stepno, window=None):
 
-    global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor, quadric
+    global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor, quadric, loadBrushes
 
-    blend_path = "../blend_files/" + model_name + "/snap" + str(stepno).zfill(6) + ".obj"
     obj_path = "../obj_files/" + model_name + "/snap" + str(stepno).zfill(6) + ".obj"
     step_path = "../steps/" + model_name + "/steps.json"
+
+    glClearColor(0.1, 0.1, 0.2, 0.0)
 
     #Check for VBOs Support
     g_fVBOSupported = False
     quadric = gluNewQuadric()
-
-    glClearColor(0.1, 0.1, 0.2, 0.0)
-
     #Define openGL rendering behaviours
     glEnable(GL_DEPTH_TEST)
-    glShadeModel(GL_SMOOTH)
     glEnable(GL_COLOR_MATERIAL)
-
     initLightning()
 
     mouseInteractor = MouseInteractor( .01, 1 , gui_objects)
@@ -189,12 +187,13 @@ def init(model_name, stepno, window=None):
     start = time()
 
     start_lfc = time()
-    loadFinalCandidate(obj_path)
+    loadFinalCandidate(obj_path, loadBrushes)
     print("Models loaded in %f" %(time() - start_lfc))
 
-    start_bs = time()
-    loadBrushStrokes(step_path, stepno, window)
-    print("Brush loaded in %f" %(time() - start_bs))
+    if loadBrushes:
+        start_bs = time()
+        loadBrushStrokes(step_path, stepno, window)
+        print("Brush loaded in %f" %(time() - start_bs))
 
     for x in range(len(meshes)):
         meshes_loaded.append(meshes[x])
@@ -242,8 +241,9 @@ def loadBrushStrokes(step_path, stepno, window=None):
                                     meshes[0].trisColors[i, 1] = 0.5
                                     meshes[0].trisColors[i, 2] = 0.5
                             except KeyError as ke:
-                                print("tri idx not found")
-                                print(ke)
+                                #print("tri idx not found")
+                                #print(ke)
+                                pass
 
                             try:
                                 idx = meshes[0].seqQuadMap[int(n[1])]
@@ -252,8 +252,9 @@ def loadBrushStrokes(step_path, stepno, window=None):
                                     meshes[0].quadColors[i, 1] = 0.5
                                     meshes[0].quadColors[i, 2] = 0.5
                             except KeyError as ke:
-                                print("quad idx not found")
-                                print(ke)
+                                #print("quad idx not found")
+                                #print(ke)
+                                pass
 
                 brush_paths.append(path)
                 brush_paths_colors.append([random.random(), random.random(), random.random()])
@@ -296,8 +297,9 @@ def loadBrushStrokes(step_path, stepno, window=None):
                                         meshes[0].trisColors[i, 1] = 0.5
                                         meshes[0].trisColors[i, 2] = 0.5
                                 except KeyError as ke:
-                                    print("tri idx not found")
-                                    print(ke)
+                                    #print("tri idx not found")
+                                    #print(ke)
+                                    pass
 
                                 try:
                                     idx = meshes[0].seqQuadMap[int(n[1])]
@@ -306,8 +308,9 @@ def loadBrushStrokes(step_path, stepno, window=None):
                                         meshes[0].quadColors[i, 1] = 0.5
                                         meshes[0].quadColors[i, 2] = 0.5
                                 except KeyError as ke:
-                                    print("quad idx not found")
-                                    print(ke)
+                                    #print("quad idx not found")
+                                    #print(ke)
+                                    pass
 
                     brush_paths.append(path)
                     brush_paths_colors.append([random.random(), random.random(), random.random()])
@@ -390,7 +393,13 @@ def resizeWindow(width, height):
     glMatrixMode(GL_MODELVIEW)
 
 
-def mainLoop(model_name, stepno, stepwindow=None):
+def mainLoop(model_name, stepno, stepwindow=None, loadB=True):
+    global loadBrushes
+    if loadB:
+        loadBrushes = True
+    else:
+        loadBrushes = False
+
     glutInit(sys.argv)
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH )
     glutInitWindowSize(*SCREEN_SIZE)
@@ -405,7 +414,7 @@ def mainLoop(model_name, stepno, stepwindow=None):
     glutMainLoop()
 
 if __name__ == "__main__":
-    #mainLoop("task01", 1720)
-    mainLoop("task02", 2619)
+    mainLoop("task01", 1720, 10)
+    #mainLoop("task02", 2619, None, False)
     #mainLoop("gargoyle2", 1058)
     #mainLoop("monster", 926, 10)
