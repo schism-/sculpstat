@@ -1,7 +1,7 @@
 import math
 import numpy
 import numpy.random
-import random
+import pickle
 import time
 import nearpy
 
@@ -91,18 +91,16 @@ class mMesh:
         return N
 
 
-    def loadModel(self, path, loadBrushes):
-        path_parts = path.split('.')
-        ext = path_parts[-1]
-        if (ext == 'obj' ) or (ext == 'OBJ'):
-            print("Loading an OBJ model")
-            start = time.time()
+    def loadModel(self, path, loadBrushes, isNumpy):
+        print("Loading an OBJ model")
+        start = time.time()
+        if isNumpy:
+            self.loadOBJModelFromNumpy(path)
+        else:
             self.loadOBJModel(path, loadBrushes)
-            print("OBJ loaded in %f" %(time.time() - start))
-            print()
-        elif (ext == 'off' ) or (ext == 'OFF'):
-            print("Loading an OFF model")
-            #self.loadOFFModel(path, '')
+        print("OBJ loaded in %f" %(time.time() - start))
+        print()
+
 
     def readOBJFile(self, file_path):
         swapyz = False
@@ -154,6 +152,36 @@ class mMesh:
             normal = [0.0, 0.0, 0.0]
 
         return normal
+
+    def loadOBJModelFromNumpy(self, numpy_path):
+        self.__init__(True)
+
+        self.vertices = numpy.load(numpy_path + "verts.npy")
+        self.loadANNEngine()
+        self.loadVertices(self.vertices)
+
+        self.seqQuadVertices = numpy.load(numpy_path + "seqquadverts.npy")
+        self.seqTrisVertices = numpy.load(numpy_path + "seqtrisverts.npy")
+        self.quadColors = numpy.load(numpy_path + "quadcolors.npy")
+        self.trisColors = numpy.load(numpy_path + "triscolors.npy")
+        self.quadNormals = numpy.load(numpy_path + "quadnormals.npy")
+        self.trisNormals = numpy.load(numpy_path + "trisnormals.npy")
+
+        print("Vertices detected: " + str(len(self.vertices)))
+        print("Faces detected: " + str(len(self.seqQuadVertices) / 4 + len(self.seqTrisVertices) / 3))
+        print("Quads detected: " + str(len(self.seqQuadVertices) / 4))
+        print("Tris detected: " + str(len(self.seqTrisVertices) / 3))
+
+
+        fSQM = open(numpy_path + "seqquadmap", "rb")
+        self.seqQuadMap = pickle.load(fSQM)
+        fSQM.close()
+
+        fSTM = open(numpy_path + "seqtrismap", "rb")
+        self.seqTrisMap = pickle.load(fSTM)
+        fSTM.close()
+
+        print("Done")
 
     def loadOBJModel(self, path, loadBrushes):
 

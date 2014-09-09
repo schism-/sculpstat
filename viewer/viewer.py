@@ -54,8 +54,8 @@ def loadVBO(m):
     m.VBONormals = vbo.VBO(m.normals)
     m.VBOColors = vbo.VBO(m.colors)
 
-def loadModel(m, path, loadBrushes):
-    m.loadModel(path, loadBrushes)
+def loadModel(m, path, loadBrushes, isNumpy):
+    m.loadModel(path, loadBrushes, isNumpy)
     m.VBOQuadVertices = vbo.VBO(m.seqQuadVertices)
     m.VBOTrisVertices = vbo.VBO(m.seqTrisVertices)
 
@@ -146,11 +146,11 @@ def initLightning():
     glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.8, 0.8, 0.8, 1] )
     glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 20 )
 
-def loadFinalCandidate(mesh_path, loadBrushes):
+def loadFinalCandidate(mesh_path, loadBrushes, isNumpy):
     global meshes
     meshes = [None,] * 1
     meshes[0] = mMesh(g_fVBOSupported)
-    loadModel(meshes[0], mesh_path, loadBrushes)
+    loadModel(meshes[0], mesh_path, loadBrushes, isNumpy)
     meshes = [m for m in meshes if m is not None ]
 
 
@@ -164,11 +164,15 @@ def changeCand():
     for x in range(len(meshes)):
         meshes_loaded.append(meshes[x])
 
-def init(model_name, stepno, window=None):
+def init(model_name, stepno, window=None, isNumpy=False):
 
     global g_fVBOSupported, meshes_loaded, gui_objects, mouseInteractor, quadric, loadBrushes
 
-    obj_path = "../obj_files/" + model_name + "/snap" + str(stepno).zfill(6) + ".obj"
+    if isNumpy:
+        obj_path = "../numpy_data/" + model_name + "/snap" + str(stepno).zfill(6) + "/"
+    else:
+        obj_path = "../obj_files/" + model_name + "/snap" + str(stepno).zfill(6) + ".obj"
+
     step_path = "../steps/" + model_name + "/steps.json"
 
     glClearColor(0.1, 0.1, 0.2, 0.0)
@@ -187,7 +191,7 @@ def init(model_name, stepno, window=None):
     start = time()
 
     start_lfc = time()
-    loadFinalCandidate(obj_path, loadBrushes)
+    loadFinalCandidate(obj_path, loadBrushes, isNumpy)
     print("Models loaded in %f" %(time() - start_lfc))
 
     if loadBrushes:
@@ -393,7 +397,7 @@ def resizeWindow(width, height):
     glMatrixMode(GL_MODELVIEW)
 
 
-def mainLoop(model_name, stepno, stepwindow=None, loadB=True):
+def mainLoop(model_name, stepno, stepwindow=None, loadB=True, isNumpy=False):
     global loadBrushes
     if loadB:
         loadBrushes = True
@@ -405,7 +409,7 @@ def mainLoop(model_name, stepno, stepwindow=None, loadB=True):
     glutInitWindowSize(*SCREEN_SIZE)
     glutInitWindowPosition(1000, 200)
     window = glutCreateWindow("obj viewer 0.1")
-    init(model_name, stepno, stepwindow)
+    init(model_name, stepno, stepwindow, isNumpy)
     mouseInteractor.registerCallbacks()
     glutDisplayFunc(drawScene)
     glutIdleFunc(drawScene)
@@ -414,7 +418,7 @@ def mainLoop(model_name, stepno, stepwindow=None, loadB=True):
     glutMainLoop()
 
 if __name__ == "__main__":
-    mainLoop("task01", 1720, 10)
-    #mainLoop("task02", 2619, None, False)
-    #mainLoop("gargoyle2", 1058)
-    #mainLoop("monster", 926, 10)
+    #mainLoop(model_name = "task01", stepno = 1720, stepwindow = 10, loadB = True, isNumpy = True)
+    #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
+    #mainLoop(model_name = "gargoyle2", stepno = 1058, stepwindow = None, loadB = False, isNumpy = False)
+    mainLoop(model_name = "monster", stepno = 926, stepwindow = 10, loadB = False, isNumpy = True)

@@ -5,7 +5,6 @@ import math
 import numpy
 import pickle
 import os.path
-import utility.mmesh as mmesh
 import utility.common as common
 
 color_map = [[0.6, 0.7, 0.7],
@@ -74,6 +73,16 @@ def loadOBJModel(path, loadBrushes):
     seqTrisMap = {}
     seqQuadMap = {}
 
+
+    numpyVerts = numpy.zeros((vertexCount, 3), 'f')
+    numpyVertsIdx = 0
+    for v in vertices:
+        numpyVerts[numpyVertsIdx, 0] = v[0]
+        numpyVerts[numpyVertsIdx, 1] = v[1]
+        numpyVerts[numpyVertsIdx, 2] = v[2]
+        numpyVertsIdx += 1
+
+
     for f in faces:
         #Create a sequential array of vertices (for rendering)
         temp = []
@@ -128,7 +137,7 @@ def loadOBJModel(path, loadBrushes):
                 nqIndex += 1
         fIndex += 1
 
-    saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, quadColors, quadNormals, trisColors, trisNormals)
+    saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, quadColors, quadNormals, trisColors, trisNormals, numpyVerts)
 
     print("Done")
 
@@ -153,7 +162,7 @@ def computeNormal(temp):
 
     return normal
 
-def saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, quadColors, quadNormals, trisColors, trisNormals):
+def saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, quadColors, quadNormals, trisColors, trisNormals, numpyVerts):
     print("Saving numpy data for: %s" % path)
 
     path_parts = path.split('/')
@@ -168,20 +177,21 @@ def saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, qua
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
-    numpy.save(save_dir + "seqquadverts", seqQuadVertices)
-    numpy.save(save_dir + "seqtrisverts", seqTrisVertices)
-    numpy.save(save_dir + "quadcolors", quadColors)
-    numpy.save(save_dir + "triscolors", trisColors)
-    numpy.save(save_dir + "quadnormals", quadNormals)
-    numpy.save(save_dir + "trisnormals", trisNormals)
+    #numpy.save(save_dir + "seqquadverts", seqQuadVertices)
+    #numpy.save(save_dir + "seqtrisverts", seqTrisVertices)
+    #numpy.save(save_dir + "quadcolors", quadColors)
+    #numpy.save(save_dir + "triscolors", trisColors)
+    #numpy.save(save_dir + "quadnormals", quadNormals)
+    #numpy.save(save_dir + "trisnormals", trisNormals)
+    numpy.save(save_dir + "verts", numpyVerts)
 
-    fSQM = open(save_dir + "seqquadmap", "wb+")
-    pickle.dump(seqQuadMap, fSQM)
-    fSQM.close()
+    #fSQM = open(save_dir + "seqquadmap", "wb+")
+    #pickle.dump(seqQuadMap, fSQM)
+    #fSQM.close()
 
-    fSTM = open(save_dir + "seqtrismap", "wb+")
-    pickle.dump(seqTrisMap, fSTM)
-    fSTM.close()
+    #fSTM = open(save_dir + "seqtrismap", "wb+")
+    #pickle.dump(seqTrisMap, fSTM)
+    #fSTM.close()
 
 
 def parse_dir(files_path):
