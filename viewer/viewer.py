@@ -1,15 +1,13 @@
 __author__ = 'christian'
 
-from OpenGL.arrays import vbo
-from OpenGL.GLUT import *
-from OpenGL.GLU import *
-from OpenGL.GL import *
-from utility.mouseInteractor import MouseInteractor
-from utility.drawfunctions import *
-from utility.mmesh import *
-from numpy import *
-from time import time
+import time
 import json
+from numpy import *
+from utility.mmesh import *
+from OpenGL.arrays import vbo
+from scipy.spatial import KDTree
+from utility.drawfunctions import *
+from utility.mouseInteractor import MouseInteractor
 
 '''
     ========== GLOBAL VARIABLES & CONSTANTS ==========
@@ -188,21 +186,21 @@ def init(model_name, stepno, window=None, isNumpy=False):
     mouseInteractor = MouseInteractor( .01, 1 , gui_objects)
 
     #LOAD MODEL
-    start = time()
+    start = time.time()
 
-    start_lfc = time()
+    start_lfc = time.time()
     loadFinalCandidate(obj_path, loadBrushes, isNumpy)
-    print("Models loaded in %f" %(time() - start_lfc))
+    print("Models loaded in %f" %(time.time() - start_lfc))
 
     if loadBrushes:
-        start_bs = time()
+        start_bs =time.time()
         loadBrushStrokes(step_path, stepno, window)
-        print("Brush loaded in %f" %(time() - start_bs))
+        print("Brush loaded in %f" %(time.time() - start_bs))
 
     for x in range(len(meshes)):
         meshes_loaded.append(meshes[x])
 
-    print("Models loaded in %f" %(time() - start))
+    print("Models loaded in %f" %(time.time() - start))
     print()
 
 
@@ -213,52 +211,26 @@ def loadBrushStrokes(step_path, stepno, window=None):
     f = open(step_path, 'r')
     step_file = json.load(f)
 
-    if not window:
+    w = 1 if not window else window
+    start_outer = time.time()
+    for k in range(w):
         try:
-            step_ops = step_file[str(stepno)]
+            step_ops = step_file[str(stepno - k)]
             stroke_op = None
             for op in step_ops:
                 if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
                     stroke_op = op
                     break
             if stroke_op:
-                path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
-                idx = 0
-                zeroes = 0
-                for point in stroke_op["stroke"]:
-                    if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
-                        path[idx] = [point["location"][0], point["location"][2], -1.0 * point["location"][1]]
-                        idx += 1
-                    else:
-                        zeroes += 1
-                if zeroes > 0:
-                    path = path[:-zeroes]
-
+                start_path = time.time()
+                path = getPath(stroke_op)
+                #print("path got in %f: " % (time.time() - start_path))
                 for p in path:
-                    neighbours = meshes[0].getNeighbours(p)
-                    for n in neighbours:
-                        if n[2] < 20:
-                            try:
-                                idx = meshes[0].seqTrisMap[int(n[1])]
-                                for i in idx:
-                                    meshes[0].trisColors[i, 0] = 0.9
-                                    meshes[0].trisColors[i, 1] = 0.5
-                                    meshes[0].trisColors[i, 2] = 0.5
-                            except KeyError as ke:
-                                #print("tri idx not found")
-                                #print(ke)
-                                pass
-
-                            try:
-                                idx = meshes[0].seqQuadMap[int(n[1])]
-                                for i in idx:
-                                    meshes[0].quadColors[i, 0] = 0.9
-                                    meshes[0].quadColors[i, 1] = 0.5
-                                    meshes[0].quadColors[i, 2] = 0.5
-                            except KeyError as ke:
-                                #print("quad idx not found")
-                                #print(ke)
-                                pass
+                    start_n = time.time()
+                    neighbours = getNeighbours(meshes[0], p)
+                    start_c = time.time()
+                    updateColors(neighbours)
+                    #print("\t path loop in (%f, %f): " % (time.time() - start_n, time.time() - start_c))
 
                 brush_paths.append(path)
                 brush_paths_colors.append([random.random(), random.random(), random.random()])
@@ -268,63 +240,57 @@ def loadBrushStrokes(step_path, stepno, window=None):
         except TypeError as e:
             print("ERROR")
             print(e)
+    print("outer loop in %f: " % (time.time() - start_outer))
+
+def getPath(stroke_op):
+    path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
+    idx = 0
+    zeroes = 0
+    for point in stroke_op["stroke"]:
+        if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
+            path[idx] = [point["location"][0], point["location"][2], -1.0 * point["location"][1]]
+            idx += 1
+        else:
+            zeroes += 1
+    if zeroes > 0:
+        path = path[:-zeroes]
+    return path
+
+def getNeighbours(mesh, point):
+    n = []
+    if False:
+        n = mesh.getNeighbours(point)
     else:
-        for k in range(window):
+        NDIM = 3
+        a = mesh.vertices
+        a.shape = a.size / NDIM, NDIM
+        tree = KDTree(a, leafsize=a.shape[0]+1)
+        distances, ndx = tree.query([point], k = 50)
+        for k in range(len(ndx[0])):
+            n.append([a[ndx[0][k]], ndx[0][k], distances[0][k]])
+    return n
+
+def updateColors(neighbours):
+    global meshes
+    for n in neighbours:
+        if n[2] < 0.1:
             try:
-                step_ops = step_file[str(stepno - k)]
-                stroke_op = None
-                for op in step_ops:
-                    if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                        stroke_op = op
-                        break
-                if stroke_op:
-                    path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
-                    idx = 0
-                    zeroes = 0
-                    for point in stroke_op["stroke"]:
-                        if abs(point["location"][0]) < 200 and abs(point["location"][1]) < 200 and abs(point["location"][2]) < 200:
-                            path[idx] = [point["location"][0], point["location"][2], -1.0 * point["location"][1]]
-                            idx += 1
-                        else:
-                            zeroes += 1
-                    if zeroes > 0:
-                        path = path[:-zeroes]
+                idx = meshes[0].seqTrisMap[int(n[1])]
+                for i in idx:
+                    meshes[0].trisColors[i, 0] = 0.9
+                    meshes[0].trisColors[i, 1] = 0.5
+                    meshes[0].trisColors[i, 2] = 0.5
+            except KeyError:
+                pass
 
-                    for p in path:
-                        neighbours = meshes[0].getNeighbours(p)
-                        for n in neighbours:
-                            if n[2] < 20:
-                                try:
-                                    idx = meshes[0].seqTrisMap[int(n[1])]
-                                    for i in idx:
-                                        meshes[0].trisColors[i, 0] = 0.9
-                                        meshes[0].trisColors[i, 1] = 0.5
-                                        meshes[0].trisColors[i, 2] = 0.5
-                                except KeyError as ke:
-                                    #print("tri idx not found")
-                                    #print(ke)
-                                    pass
-
-                                try:
-                                    idx = meshes[0].seqQuadMap[int(n[1])]
-                                    for i in idx:
-                                        meshes[0].quadColors[i, 0] = 0.9
-                                        meshes[0].quadColors[i, 1] = 0.5
-                                        meshes[0].quadColors[i, 2] = 0.5
-                                except KeyError as ke:
-                                    #print("quad idx not found")
-                                    #print(ke)
-                                    pass
-
-                    brush_paths.append(path)
-                    brush_paths_colors.append([random.random(), random.random(), random.random()])
-            except KeyError as e:
-                print("Step not found")
-                print(e)
-            except TypeError as e:
-                print("ERROR")
-                print(e)
-
+            try:
+                idx = meshes[0].seqQuadMap[int(n[1])]
+                for i in idx:
+                    meshes[0].quadColors[i, 0] = 0.9
+                    meshes[0].quadColors[i, 1] = 0.5
+                    meshes[0].quadColors[i, 2] = 0.5
+            except KeyError:
+                pass
 
 def debugStuff():
     pass
@@ -382,8 +348,6 @@ def drawScene():
         for obj in gui_objects:
             obj.draw()
         glEnable( GL_LIGHTING )
-
-
     glutSwapBuffers()
 
 def resizeWindow(width, height):
@@ -421,4 +385,4 @@ if __name__ == "__main__":
     #mainLoop(model_name = "task01", stepno = 1720, stepwindow = 10, loadB = True, isNumpy = True)
     #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
     #mainLoop(model_name = "gargoyle2", stepno = 1058, stepwindow = None, loadB = False, isNumpy = False)
-    mainLoop(model_name = "monster", stepno = 926, stepwindow = 10, loadB = False, isNumpy = True)
+    mainLoop(model_name = "monster", stepno = 925, stepwindow = 2, loadB = True, isNumpy = True)

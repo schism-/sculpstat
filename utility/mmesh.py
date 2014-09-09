@@ -157,8 +157,8 @@ class mMesh:
         self.__init__(True)
 
         self.vertices = numpy.load(numpy_path + "verts.npy")
-        self.loadANNEngine()
-        self.loadVertices(self.vertices)
+        #self.loadANNEngine()
+        #self.loadVertices(self.vertices)
 
         self.seqQuadVertices = numpy.load(numpy_path + "seqquadverts.npy")
         self.seqTrisVertices = numpy.load(numpy_path + "seqtrisverts.npy")
