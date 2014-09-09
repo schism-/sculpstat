@@ -177,21 +177,21 @@ def saveData(path, seqQuadVertices, seqTrisVertices, seqQuadMap, seqTrisMap, qua
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
-    #numpy.save(save_dir + "seqquadverts", seqQuadVertices)
-    #numpy.save(save_dir + "seqtrisverts", seqTrisVertices)
-    #numpy.save(save_dir + "quadcolors", quadColors)
-    #numpy.save(save_dir + "triscolors", trisColors)
-    #numpy.save(save_dir + "quadnormals", quadNormals)
-    #numpy.save(save_dir + "trisnormals", trisNormals)
+    numpy.save(save_dir + "seqquadverts", seqQuadVertices)
+    numpy.save(save_dir + "seqtrisverts", seqTrisVertices)
+    numpy.save(save_dir + "quadcolors", quadColors)
+    numpy.save(save_dir + "triscolors", trisColors)
+    numpy.save(save_dir + "quadnormals", quadNormals)
+    numpy.save(save_dir + "trisnormals", trisNormals)
     numpy.save(save_dir + "verts", numpyVerts)
 
-    #fSQM = open(save_dir + "seqquadmap", "wb+")
-    #pickle.dump(seqQuadMap, fSQM)
-    #fSQM.close()
+    fSQM = open(save_dir + "seqquadmap", "wb+")
+    pickle.dump(seqQuadMap, fSQM)
+    fSQM.close()
 
-    #fSTM = open(save_dir + "seqtrismap", "wb+")
-    #pickle.dump(seqTrisMap, fSTM)
-    #fSTM.close()
+    fSTM = open(save_dir + "seqtrismap", "wb+")
+    pickle.dump(seqTrisMap, fSTM)
+    fSTM.close()
 
 
 def parse_dir(files_path):
@@ -202,6 +202,6 @@ def parse_dir(files_path):
         loadOBJModel(file[0], True)
 
 if __name__ == "__main__":
-    obj_files_path = "../obj_files/monster"
+    obj_files_path = "../obj_files/task01"
 
     parse_dir(obj_files_path)

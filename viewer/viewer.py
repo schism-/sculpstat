@@ -225,15 +225,16 @@ def loadBrushStrokes(step_path, stepno, window=None):
                 start_path = time.time()
                 path = getPath(stroke_op)
                 #print("path got in %f: " % (time.time() - start_path))
+                col = [random.random(), random.random(), random.random()]
                 for p in path:
                     start_n = time.time()
                     neighbours = getNeighbours(meshes[0], p)
                     start_c = time.time()
-                    updateColors(neighbours)
+                    updateColors(neighbours, col)
                     #print("\t path loop in (%f, %f): " % (time.time() - start_n, time.time() - start_c))
 
                 brush_paths.append(path)
-                brush_paths_colors.append([random.random(), random.random(), random.random()])
+                brush_paths_colors.append(col)
         except KeyError as e:
             print("Step not found")
             print(e)
@@ -270,25 +271,25 @@ def getNeighbours(mesh, point):
             n.append([a[ndx[0][k]], ndx[0][k], distances[0][k]])
     return n
 
-def updateColors(neighbours):
+def updateColors(neighbours, col):
     global meshes
     for n in neighbours:
-        if n[2] < 0.1:
+        if n[2] < 0.2:
             try:
                 idx = meshes[0].seqTrisMap[int(n[1])]
                 for i in idx:
-                    meshes[0].trisColors[i, 0] = 0.9
-                    meshes[0].trisColors[i, 1] = 0.5
-                    meshes[0].trisColors[i, 2] = 0.5
+                    meshes[0].trisColors[i, 0] = col[0]
+                    meshes[0].trisColors[i, 1] = col[1]
+                    meshes[0].trisColors[i, 2] = col[2]
             except KeyError:
                 pass
 
             try:
                 idx = meshes[0].seqQuadMap[int(n[1])]
                 for i in idx:
-                    meshes[0].quadColors[i, 0] = 0.9
-                    meshes[0].quadColors[i, 1] = 0.5
-                    meshes[0].quadColors[i, 2] = 0.5
+                    meshes[0].quadColors[i, 0] = col[0]
+                    meshes[0].quadColors[i, 1] = col[1]
+                    meshes[0].quadColors[i, 2] = col[2]
             except KeyError:
                 pass
 
@@ -382,7 +383,7 @@ def mainLoop(model_name, stepno, stepwindow=None, loadB=True, isNumpy=False):
     glutMainLoop()
 
 if __name__ == "__main__":
-    #mainLoop(model_name = "task01", stepno = 1720, stepwindow = 10, loadB = True, isNumpy = True)
+    #mainLoop(model_name = "task01", stepno = 1520, stepwindow = 5, loadB = True, isNumpy = True)
     #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
     #mainLoop(model_name = "gargoyle2", stepno = 1058, stepwindow = None, loadB = False, isNumpy = False)
-    mainLoop(model_name = "monster", stepno = 925, stepwindow = 2, loadB = True, isNumpy = True)
+    mainLoop(model_name = "monster", stepno = 925, stepwindow = 2, loadB = True, isNumpy = False)

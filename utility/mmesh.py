@@ -235,62 +235,69 @@ class mMesh:
         self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
         print("Seq vertices: %i" % (len(self.seqVertices)))
 
+        perVertexNormals = {}
+
         for f in self.faces:
             #Create a sequential array of vertices (for rendering)
-            temp = []
+            #temp = []
+            normal = self.computeNormal([self.vertices[v-1] for v in f])
             for v in f:
-                temp.append(self.vertices[v-1])
+                #temp.append(self.vertices[v-1])
                 vIndex += 1
 
                 if len(f) == 3:
                     self.seqTrisVertices[tIndex, 0] = self.vertices[v-1][0]
                     self.seqTrisVertices[tIndex, 1] = self.vertices[v-1][1]
                     self.seqTrisVertices[tIndex, 2] = self.vertices[v-1][2]
-
                     self.trisColors[tIndex, 0] = color_map[0][0]
                     self.trisColors[tIndex, 1] = color_map[0][1]
                     self.trisColors[tIndex, 2] = color_map[0][2]
-
                     if loadBrushes:
                         if v-1 not in self.seqTrisMap:
                             self.seqTrisMap[v-1] = [tIndex]
                         else:
                             self.seqTrisMap[v-1].append(tIndex)
-                        #self.seqTrisMap2[v-1][self.seqTrisMapIdx[v-1]] = tIndex
-                        #self.seqTrisMapIdx[v-1] = self.seqTrisMapIdx[v-1] + 1
-
                     tIndex += 1
                 elif len(f) == 4:
                     self.seqQuadVertices[qIndex, 0] = self.vertices[v-1][0]
                     self.seqQuadVertices[qIndex, 1] = self.vertices[v-1][1]
                     self.seqQuadVertices[qIndex, 2] = self.vertices[v-1][2]
-
                     self.quadColors[qIndex, 0] = color_map[1][0]
                     self.quadColors[qIndex, 1] = color_map[1][1]
                     self.quadColors[qIndex, 2] = color_map[1][2]
-
                     if loadBrushes:
                         if v-1 not in self.seqQuadMap:
                             self.seqQuadMap[v-1] = [qIndex]
                         else:
                             self.seqQuadMap[v-1].append(qIndex)
-
                     qIndex += 1
 
-            normal = self.computeNormal(temp)
+                if v in perVertexNormals:
+                    perVertexNormals[v][1] = [(perVertexNormals[v][1][0] * perVertexNormals[v][0] + normal[0]) / (perVertexNormals[v][0] + 1),
+                                              (perVertexNormals[v][1][1] * perVertexNormals[v][0] + normal[1]) / (perVertexNormals[v][0] + 1),
+                                              (perVertexNormals[v][1][2] * perVertexNormals[v][0] + normal[2]) / (perVertexNormals[v][0] + 1)]
+                    perVertexNormals[v][0] += 1
+                else:
+                    perVertexNormals[v] = [None, None]
+                    perVertexNormals[v][1] = normal
+                    perVertexNormals[v][0] = 1
+
+        for f in self.faces:
             if len(f) == 3:
-                for _ in range(3):
-                    self.trisNormals[ntIndex, 0] = normal[0]
-                    self.trisNormals[ntIndex, 1] = normal[1]
-                    self.trisNormals[ntIndex, 2] = normal[2]
+                for v in f:
+                    self.trisNormals[ntIndex, 0] = perVertexNormals[v][1][0]
+                    self.trisNormals[ntIndex, 1] = perVertexNormals[v][1][1]
+                    self.trisNormals[ntIndex, 2] = perVertexNormals[v][1][2]
                     ntIndex += 1
             elif len(f) == 4:
-                for _ in range(4):
-                    self.quadNormals[nqIndex, 0] = normal[0]
-                    self.quadNormals[nqIndex, 1] = normal[1]
-                    self.quadNormals[nqIndex, 2] = normal[2]
+                for v in f:
+                    self.quadNormals[nqIndex, 0] = perVertexNormals[v][1][0]
+                    self.quadNormals[nqIndex, 1] = perVertexNormals[v][1][1]
+                    self.quadNormals[nqIndex, 2] = perVertexNormals[v][1][2]
                     nqIndex += 1
             fIndex += 1
+
+        self.vertices = numpy.asarray(self.vertices, dtype=numpy.float32)
 
         print("Done")
 
