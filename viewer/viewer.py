@@ -1,13 +1,15 @@
 __author__ = 'christian'
 
-import time
 import json
+
 from numpy import *
-from utility.mmesh import *
 from OpenGL.arrays import vbo
 from scipy.spatial import KDTree
+
+from utility.mmesh import *
 from utility.drawfunctions import *
 from utility.mouseInteractor import MouseInteractor
+
 
 '''
     ========== GLOBAL VARIABLES & CONSTANTS ==========
@@ -383,7 +385,7 @@ def mainLoop(model_name, stepno, stepwindow=None, loadB=True, isNumpy=False):
     glutMainLoop()
 
 if __name__ == "__main__":
-    #mainLoop(model_name = "task01", stepno = 1520, stepwindow = 5, loadB = True, isNumpy = True)
-    #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
+    #mainLoop(model_name = "task01", stepno = 1720, stepwindow = 5, loadB = True, isNumpy = False)
+    mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
     #mainLoop(model_name = "gargoyle2", stepno = 1058, stepwindow = None, loadB = False, isNumpy = False)
-    mainLoop(model_name = "monster", stepno = 925, stepwindow = 2, loadB = True, isNumpy = False)
+    #mainLoop(model_name = "monster", stepno = 925, stepwindow = 10, loadB = True, isNumpy = False)

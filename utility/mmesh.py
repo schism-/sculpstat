@@ -1,3 +1,5 @@
+__author__ = 'christian'
+
 import math
 import numpy
 import numpy.random
@@ -137,9 +139,14 @@ class mMesh:
                  temp[0][1] - temp[1][1],
                  temp[0][2] - temp[1][2]]
 
-        edge2 = [temp[0][0] - temp[2][0],
-                 temp[0][1] - temp[2][1],
-                 temp[0][2] - temp[2][2]]
+        if len(temp) == 3:
+            edge2 = [temp[0][0] - temp[2][0],
+                     temp[0][1] - temp[2][1],
+                     temp[0][2] - temp[2][2]]
+        else:
+            edge2 = [temp[0][0] - temp[3][0],
+                     temp[0][1] - temp[3][1],
+                     temp[0][2] - temp[3][2]]
 
         normal = [edge1[1] * edge2[2] - edge1[2] * edge2[1],
                   edge1[2] * edge2[0] - edge1[0] * edge2[2],

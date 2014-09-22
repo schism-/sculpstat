@@ -1,12 +1,15 @@
-import numpy as np
+__author__ = 'christian'
+
 import re
 import json
 import time
 import bpy
-
+import numpy as np
 from utility import common
 
+
 debug = False
+
 
 def views(window):
     rtn = []
