@@ -5,3 +5,4 @@ steps/*
 numpy_data/*
 utility/__pycache__/*
 .idea/*
+diff/*
