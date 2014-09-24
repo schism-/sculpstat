@@ -10,38 +10,68 @@ def compute_diff(file_path, file1, file2):
     f1 = open(file_path + "/snap" + str(file1).zfill(6) + ".obj", 'r')
     f2 = open(file_path + "/snap" + str(file2).zfill(6) + ".obj", 'r')
 
-    f1_lines = [line.strip() for line in f1 if line.startswith('v') or line.startswith('f')]
-    f2_lines = [line.strip() for line in f2 if line.startswith('v') or line.startswith('f')]
+    f1_v_lines = [line.strip() for line in f1 if line.startswith('v ')]
+    f2_v_lines = [line.strip() for line in f2 if line.startswith('v ')]
+    f1.close()
+    f2.close()
 
-    print("\t Lines in file 1 \t%d \t(v: \t%d, f: \t%d)" % (len(f1_lines),
-                                                               len([el for el in f1_lines if el.startswith('v')]),
-                                                               len([el for el in f1_lines if el.startswith('f')])))
+    f1 = open(file_path + "/snap" + str(file1).zfill(6) + ".obj", 'r')
+    f2 = open(file_path + "/snap" + str(file2).zfill(6) + ".obj", 'r')
 
-    print("\t Lines in file 2 \t%d \t(v: \t%d, f: \t%d)" % (len(f2_lines),
-                                                               len([el for el in f2_lines if el.startswith('v')]),
-                                                               len([el for el in f2_lines if el.startswith('f')])))
+    f1_f_lines = [line.strip() for line in f1 if line.startswith('f ')]
+    f2_f_lines = [line.strip() for line in f2 if line.startswith('f ')]
+
+    f1.close()
+    f2.close()
+
+    print("\t Lines in file 1 \t%d \t(v: \t%d, f: \t%d)" % (len(f1_v_lines) + len(f1_f_lines),
+                                                               len(f1_v_lines),
+                                                               len(f1_f_lines)))
+
+    print("\t Lines in file 2 \t%d \t(v: \t%d, f: \t%d)" % (len(f2_v_lines) + len(f2_f_lines),
+                                                               len(f2_v_lines),
+                                                               len(f2_f_lines)))
 
     start_dumbdiff = time.time()
     diff_lines_no = 0
     diff_lines = []
+
     # noinspection PyTypeChecker
-    for k in range(min(len(f1_lines), len(f2_lines))):
-        if not(f1_lines[k] == f2_lines[k]):
-            diff_lines.append([k, f1_lines[k], f2_lines[k]])
+    for k in range(min(len(f1_v_lines), len(f2_v_lines))):
+        if not(f1_v_lines[k] == f2_v_lines[k]):
+            diff_lines.append(["vm", k, f1_v_lines[k].split(' ')[1:], f2_v_lines[k].split(' ')[1:]])
             diff_lines_no += 1
-    if len(f1_lines) < len(f2_lines):
-        print("\t -f2 has more lines-\t\t Excess: \t%d" % (len(f2_lines) - len(f1_lines)))
-        for idx, el in enumerate(f2_lines[len(f1_lines) + 1:]):
-            diff_lines.append([len(f1_lines) + 1 + idx, '', el])
-        diff_lines_no += (len(f2_lines) - len(f1_lines))
-    elif len(f2_lines) < len(f1_lines):
-        print("\t -f1 has more lines-\t\t Excess: \t%d" % (len(f1_lines) - len(f2_lines)))
-        for idx, el in enumerate(f1_lines[len(f2_lines) + 1:]):
-            diff_lines.append([len(f2_lines) + 1 + idx, '', el])
-        diff_lines_no += (len(f1_lines) - len(f2_lines))
+    if len(f1_v_lines) < len(f2_v_lines):
+        print("\t -f2 has more verts-\t\t Excess: \t%d" % (len(f2_v_lines) - len(f1_v_lines)))
+        for idx, el in enumerate(f2_v_lines[len(f1_v_lines):]):
+            diff_lines.append(["va", len(f1_v_lines) + 1 + idx, '', el.split(' ')[1:]])
+        diff_lines_no += (len(f2_v_lines) - len(f1_v_lines))
+    elif len(f2_v_lines) < len(f1_v_lines):
+        print("\t -f1 has more verts-\t\t Excess: \t%d" % (len(f1_v_lines) - len(f2_v_lines)))
+        for idx, el in enumerate(f1_v_lines[len(f2_v_lines):]):
+            diff_lines.append(["vd", len(f2_v_lines) + 1 + idx, el.split(' ')[1:], ''])
+        diff_lines_no += (len(f1_v_lines) - len(f2_v_lines))
+
+    # noinspection PyTypeChecker
+    for k in range(min(len(f1_f_lines), len(f2_f_lines))):
+        if not(f1_f_lines[k] == f2_f_lines[k]):
+            diff_lines.append(["fm", k, f1_f_lines[k].split(' ')[1:], f2_f_lines[k].split(' ')[1:]])
+            diff_lines_no += 1
+    if len(f1_f_lines) < len(f2_f_lines):
+        print("\t -f2 has more faces-\t\t Excess: \t%d" % (len(f2_f_lines) - len(f1_f_lines)))
+        for idx, el in enumerate(f2_f_lines[len(f1_f_lines):]):
+            diff_lines.append(["fa", len(f1_f_lines) + 1 + idx, '', el.split(' ')[1:]])
+        diff_lines_no += (len(f2_f_lines) - len(f1_f_lines))
+    elif len(f2_f_lines) < len(f1_f_lines):
+        print("\t -f1 has more faces-\t\t Excess: \t%d" % (len(f1_f_lines) - len(f2_f_lines)))
+        for idx, el in enumerate(f1_f_lines[len(f2_f_lines):]):
+            diff_lines.append(["fd", len(fd_f_lines) + 1 + idx, el.split(' ')[1:], ''])
+        diff_lines_no += (len(f1_v_lines) - len(f2_v_lines))
+
     dumb_diff_time = time.time() - start_dumbdiff
     print("\t -Dumbdiff-\t\t lines diffed: \t%d - took \t%f" % (diff_lines_no, dumb_diff_time))
 
+    '''
     start_setdiff = time.time()
     f1_set = set(f1_lines)
     f2_set = set(f2_lines)
@@ -53,7 +83,8 @@ def compute_diff(file_path, file1, file2):
                                                                                    len(f1_lines) == len(f1_set),
                                                                                    len(f2_lines) == len(f2_set)))
     print()
-    return [diff_lines, dumb_diff_time, setdiff_time]
+    '''
+    return [diff_lines, dumb_diff_time, 0.0]
 
 def reallocate_array(old_array):
     temp = np.zeros(old_array.shape, old_array.dtype)
@@ -73,7 +104,11 @@ if __name__ == "__main__":
         ddtotal += ddtime
         sdtotal += sdtime
         fh = open(diff_files_path + "/diff_" + str(j), "wb+")
-        pickle.dump(diffed_lines, fh)
+        #print(diffed_lines)
+        if len(diffed_lines) > 0:
+            pickle.dump(diffed_lines, fh)
+        else:
+            pickle.dump(["nodiff"], fh)
         fh.close()
 
     print("- TOTAL TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal, sdtotal))

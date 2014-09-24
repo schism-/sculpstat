@@ -3,68 +3,65 @@ __author__ = 'christian'
 import json
 
 from numpy import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+from OpenGL.GLUT import *
+import utility.vbo as uvbo
 from OpenGL.arrays import vbo
 from scipy.spatial import KDTree
 
 from utility.mmesh import *
 from utility.drawfunctions import *
 from utility.mouseInteractor import MouseInteractor
+from utility.keyboardInteractor import KeyboardInteractor
 
 class Viewer(object):
 
-    def __init__(self, model_name):
-        self.color_map = [[0.7, 0.7, 0.7]]
+    def __init__(self, model_name, current_step = 0):
 
-        self.g_fVBOSupported = True
-        self.ESCAPE = '\033'  # Octal value for 'esc' key
-        self.SCREEN_SIZE = (800, 600)
-        self.SHAPE = ''
-        self.lastx=0
-        self.lasty=0
-
-        self.meshes = []
-
+        # Helper classes
         self.mouseInteractor = None
-
-        # Rendered objects
-        self.meshes_loaded = []
-        self.gui_objects = []
-
-        self.brush_paths = []
-        self.brush_paths_colors = []
+        self.keyboardInteractor = None
 
         #GUI Variables
         self.window = None
         self.thread = None
         self.buttonThread = None
+        self.SCREEN_SIZE = (800, 600)
 
         #Render variables
+        self.g_fVBOSupported = True
         self.draw_gui = False
         self.load_brushes = True
         self.is_numpy = False
+        self.current_step = current_step
 
-        self.obj_path = "../obj_files/" + model_name + "/snap" + str(0).zfill(6) + ".obj"
-        self.blend_path = "../blend_files/" + model_name + "/snap" + str(0).zfill(6) + ".blend"
-        self.numpy_path = "../nupy_data/" + model_name + "/snap" + str(0).zfill(6) + "/"
-        self.step_path = "../steps/" + model_name + "/steps.json"
-
-        self.current_step = 0
-
+        # Rendered objects
+        self.meshes = []
+        self.gui_objects = []
         self.brush_paths = []
         self.brush_paths_colors = []
 
-    def init(self):
+        # File paths
+        self.obj_path = "../obj_files/" + model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+        self.blend_path = "../blend_files/" + model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+        self.numpy_path = "../numpy_data/" + model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+        self.diff_path = "../diff/" + model_name + "/"
+        self.step_path = "../steps/" + model_name + "/steps.json"
+
+
+    def init(self, load_mesh):
         glClearColor(0.1, 0.1, 0.2, 0.0)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_COLOR_MATERIAL)
-        self.initLightning()
 
+        self.initLightning()
         self.mouseInteractor = MouseInteractor( .01, 1 , self.gui_objects)
+        self.keyboardInteractor = KeyboardInteractor(self, self.mouseInteractor)
 
         #LOAD MODEL
-        start = time.time()
         start_lfc = time.time()
-        self.loadFinalCandidate(self.obj_path)
+        self.loadFinalCandidate(load_mesh)
         print("Models loaded in %f" %(time.time() - start_lfc))
 
         if self.load_brushes:
@@ -72,10 +69,6 @@ class Viewer(object):
             self.loadBrushStrokes(self.step_path, self.current_step)
             print("Brush loaded in %f" %(time.time() - start_bs))
 
-        for x in range(len(self.meshes)):
-            self.meshes_loaded.append(self.meshes[x])
-
-        print("Models loaded in %f" %(time.time() - start))
         print()
 
     def initLightning(self):
@@ -103,30 +96,46 @@ class Viewer(object):
         glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.8, 0.8, 0.8, 1] )
         glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 20 )
 
-    def mainLoop(self):
+    def mainLoop(self, load_mesh=None):
         glutInit(sys.argv)
         glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH )
         glutInitWindowSize(*self.SCREEN_SIZE)
         glutInitWindowPosition(1000, 200)
         self.window = glutCreateWindow("obj viewer 0.1")
-        self.init()
+        self.init(load_mesh)
         self.mouseInteractor.registerCallbacks()
         glutDisplayFunc(self.drawScene)
         glutIdleFunc(self.drawScene)
         glutReshapeFunc(self.resizeWindow)
-        glutKeyboardFunc(self.keyboardPressed)
-        glutKeyboardUpFunc(self.keyboardUp)
+        glutKeyboardFunc(self.keyboardInteractor.keyboardPressed)
+        glutKeyboardUpFunc(self.keyboardInteractor.keyboardUp)
         glutMainLoop()
 
-    def loadFinalCandidate(self, mesh_path):
-        self.meshes = [None,] * 1
-        self.meshes[0] = mMesh(self.g_fVBOSupported)
-        self.loadModel(self.meshes[0], mesh_path)
-        self.meshes = [m for m in self.meshes if m is not None ]
+    def loadFinalCandidate(self, load_mesh=None):
+        self.meshes = [None]
+        if not load_mesh:
+            self.meshes[0] = mMesh(self.g_fVBOSupported)
+            self.loadModel(self.meshes[0])
+            self.meshes = [m for m in self.meshes if m is not None ]
+        else:
+            print("loading directly")
+            self.meshes = [load_mesh]
+
+            self.meshes[0].VBOQuadVertices = vbo.VBO(self.meshes[0].seqQuadVertices)
+
+            self.meshes[0].VBOTrisVertices = vbo.VBO(self.meshes[0].seqTrisVertices)
+
+            self.meshes[0].VBOQuadNormals = vbo.VBO(self.meshes[0].quadNormals)
+            self.meshes[0].VBOTrisNormals = vbo.VBO(self.meshes[0].trisNormals)
+
+            self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
+            self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
 
 
-    def loadModel(self, m, path):
-        m.loadModel(path, self.load_brushes, self.is_numpy)
+    def loadModel(self, m, from_diff=False):
+        if not from_diff:
+            m.loadModel(self.obj_path, self.load_brushes, self.is_numpy)
+
         m.VBOQuadVertices = vbo.VBO(m.seqQuadVertices)
         m.VBOTrisVertices = vbo.VBO(m.seqTrisVertices)
 
@@ -152,7 +161,7 @@ class Viewer(object):
                         stroke_op = op
                         break
                 if stroke_op:
-                    path = getPath(stroke_op)
+                    path = self.getPath(stroke_op)
                     col = [random.random(), random.random(), random.random()]
                     self.brush_paths.append(path)
                     self.brush_paths_colors.append(col)
@@ -199,9 +208,9 @@ class Viewer(object):
 
         #Draw all the stuff here
         if self.mouseInteractor.drawMeshes:
-            for m in self.meshes_loaded:
+            for m in self.meshes:
                 glPushMatrix()
-                self.drawModel(m)
+                self.draw_mesh(m)
                 if (False):
                     self.drawBBoxes(m)
                 glPopMatrix()
@@ -238,66 +247,45 @@ class Viewer(object):
 
 
     def loadNextModel(self):
+        print("Loading next model")
+        done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
+        if done:
+            self.loadModel(self.meshes[0], True)
+        self.current_step += 1
         pass
 
     def loadPrevModel(self):
+        print("Loading prev model")
+        m = self.meshes[0]
+        done = m.apply_diff(self.current_step, self.diff_path, reverse=True)
+        if done:
+            m.VBOQuadVertices = None
+            m.VBOTrisVertices = None
+            m.VBOQuadNormals = None
+            m.VBOTrisNormals = None
+            m.VBOQuadColors = None
+            m.VBOTrisColors = None
+            self.loadModel(self.meshes[0], True)
+        self.current_step -= 1
         pass
 
-
-    def keyboardPressed(self, key, x, y):
-        if key == b'z' and not self.mouseInteractor.zooming:
-            self.mouseInteractor.zooming = True
-        if key == b'a' and self.mouseInteractor.drawMeshes:
-            self.mouseInteractor.drawMeshes = False
-        if key == b'q':
-            self.loadPrevModel()
-        if key == b'q':
-            self.loadNextModel()
-
-    def keyboardUp(self, key, x, y):
-        if key == b'z' and self.mouseInteractor.zooming:
-            self.mouseInteractor.zooming = False
-        if key == b'a' and not self.mouseInteractor.drawMeshes:
-            self.mouseInteractor.drawMeshes = True
-
-    def drawModel(self, m):
+    def draw_mesh(self, m):
         if m.VBOQuadVertices is not None:
-            m.VBOQuadVertices.bind()
-            glEnableClientState(GL_VERTEX_ARRAY)
-            glVertexPointer(3, GL_FLOAT, 0, m.VBOQuadVertices)
-
-            m.VBOQuadNormals.bind()
-            glEnableClientState(GL_NORMAL_ARRAY)
-            glNormalPointer(GL_FLOAT, 0, m.VBOQuadNormals)
-
+            uvbo.load_vertex_pointer(m.VBOQuadVertices)
+            uvbo.load_normal_pointer(m.VBOQuadNormals)
             if (m.VBOQuadColors is not None):
-                m.VBOQuadColors.bind()
-                glEnableClientState(GL_COLOR_ARRAY)
-                glColorPointer(3, GL_FLOAT, 0, m.VBOQuadColors)
-            else:
-                glDisableClientState(GL_COLOR_ARRAY)
-                pass
-
+                uvbo.load_color_pointer(m.VBOQuadColors)
             glDrawArrays(GL_QUADS, 0, len(m.seqQuadVertices))
+            uvbo.disable_quad(m)
 
         if m.VBOTrisVertices is not None:
-            m.VBOTrisVertices.bind()
-            glEnableClientState(GL_VERTEX_ARRAY)
-            glVertexPointer(3, GL_FLOAT, 0, m.VBOTrisVertices)
-
-            m.VBOTrisNormals.bind()
-            glEnableClientState(GL_NORMAL_ARRAY)
-            glNormalPointer(GL_FLOAT, 0, m.VBOTrisNormals)
-
+            uvbo.load_vertex_pointer(m.VBOTrisVertices)
+            uvbo.load_normal_pointer(m.VBOTrisNormals)
             if (m.VBOTrisColors is not None):
-                m.VBOTrisColors.bind()
-                glEnableClientState(GL_COLOR_ARRAY)
-                glColorPointer(3, GL_FLOAT, 0, m.VBOTrisColors)
-            else:
-                glDisableClientState(GL_COLOR_ARRAY)
-                pass
-
+                uvbo.load_color_pointer(m.VBOTrisColors)
             glDrawArrays(GL_TRIANGLES, 0, len(m.seqTrisVertices))
+            uvbo.disable_tris(m)
+
 
     def drawBrushPath(self, path, idx):
         glColor3f(*self.brush_paths_colors[idx])
@@ -322,20 +310,16 @@ class Viewer(object):
         m.VBOColors = vbo.VBO(m.colors)
 
 
-    def changeCand(self):
-        self.gui_objects[1].setIndices(indices)
-        self.loadFinalCandidate()
-        for x in range(len(self.meshes)):
-            self.loadVBO(meshes[x])
-        self.meshes_loaded = []
-        for x in range(len(self.meshes)):
-            self.meshes_loaded.append(self.meshes[x])
-
-
-
 if __name__ == "__main__":
-    v = Viewer("task01")
-    v.mainLoop()
+    if True:
+        v = Viewer("task01", 0)
+        v.mainLoop()
+    else:
+        m = mMesh(False)
+        m.loadOBJModel('../obj_files/task01/snap000001.obj', False)
+        m.apply_diff(1, '../diff/task01/', False)
+        v.mainLoop(m)
+
     #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)
     #mainLoop(model_name = "gargoyle2", stepno = 1058, stepwindow = None, loadB = False, isNumpy = False)
     #mainLoop(model_name = "monster", stepno = 925, stepwindow = 10, loadB = True, isNumpy = False)

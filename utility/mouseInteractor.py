@@ -8,7 +8,7 @@ thread = None
 buttonThread = None
 
 class MouseInteractor(object):
-    """Connection between mouse motion and transformation matrix"""
+
     def __init__( self, translationScale=0.1, rotationScale=.2, interface=[]):
         self.scalingFactorRotation = rotationScale
         self.scalingFactorTranslation = translationScale
@@ -23,7 +23,7 @@ class MouseInteractor(object):
         self.drawMeshes = True
 
     def mouseButton( self, button, mode, x, y ):
-        """Callback function for mouse button."""
+
         if mode == GLUT_DOWN:
             guiPressed, bPressed = self.checkGUI(x, y, True)
             if (not guiPressed):
@@ -48,12 +48,8 @@ class MouseInteractor(object):
                     
                     #Saving in a global variable, so other methods know what button to enable when the thread is done
                     buttonThread = bPressed
-                    #print "Thread status: " + str(thread.is_alive())
-                    
-                    #print "Doing other stuff blah blah blah"
-                
+
                 if (bPressed.type == "Slider"):
-                    #print "Interaction with slider"
                     self.zoomSlider = True
         else:
             self.mouseButtonPressed = None
@@ -65,11 +61,6 @@ class MouseInteractor(object):
             glutPostRedisplay( )
 
     def mouseMotion( self, x, y ):
-        """Callback function for mouse motion.
-        Depending on the button pressed, the displacement of the
-        mouse pointer is either converted into a translation vector
-        or a rotation matrix."""
-        
         deltaX = x - self.oldMousePos[ 0 ]
         deltaY = y - self.oldMousePos[ 1 ]
         if self.mouseButtonPressed == GLUT_RIGHT_BUTTON:
@@ -118,35 +109,15 @@ class MouseInteractor(object):
         else:
             for b in self.interface:
                 b.mouseUp()
-            
-        """Concatenation of the current translation and rotation
-          matrices with the current OpenGL transformation matrix"""
 
         glMultMatrixf( self.translationMatrix.getCurrentMatrix() )
         glMultMatrixf( self.rotationMatrix.getCurrentMatrix() )
-
-    def keyboardPressed(self, key, x, y):
-        if key == b'z' and not self.zooming:
-            self.zooming = True
-
-        if key == b'a' and self.drawMeshes:
-            self.drawMeshes = False
-
-    def keyboardUp(self, key, x, y):
-        if key == b'z' and self.zooming:
-            self.zooming = False
-
-        if key == b'a' and not self.drawMeshes:
-            self.drawMeshes = True
-
 
     def registerCallbacks( self ):
         """Initialise glut callback functions."""
         glutMouseFunc( self.mouseButton )
         glutMotionFunc( self.mouseMotion )
         glutPassiveMotionFunc( self.mousePassiveMotion )
-        glutKeyboardFunc( self.keyboardPressed )
-        glutKeyboardUpFunc( self.keyboardUp )
 
     def checkGUI(self, x, y, click):
         somethingPressed = False
