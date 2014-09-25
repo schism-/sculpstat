@@ -10,7 +10,8 @@ import nearpy
 from OpenGL.GL.ARB.vertex_buffer_object import *
 
 color_map = [[0.6, 0.7, 0.7],
-             [0.8, 0.7, 0.7]]
+             [0.8, 0.7, 0.7],
+             [0.6, 0.8, 0.6]]
 
 class mMesh:
     def __init__(self, vbo):
@@ -368,13 +369,17 @@ class mMesh:
         return [v_mod, q_mod, t_mod, v_add, q_add, t_add, v_del, q_del, t_del, f_mod, f_add, f_del]
 
     def apply_diff(self, current_step, diff_path, reverse=False):
-        print("diffing")
+        print("Applying diff " + str(current_step))
         self.mod_vertices, self.mod_quads, self.mod_tris, \
         self.new_vertices, self.new_quads, self.new_tris, \
         self.del_vertices, self.del_quads, self.del_tris,\
         self.mod_faces, self.new_faces, self.del_faces = self.read_diff(diff_path + "diff_" + str(current_step))
 
         if len(self.mod_vertices) + len(self.mod_faces) + len(self.new_vertices) + len(self.new_faces) == 0:
+            self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
+            self.quadColors.fill(0.5)
+            self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
+            self.trisColors.fill(0.5)
             return False
 
         #update vertices and faces list
@@ -390,18 +395,13 @@ class mMesh:
             self.vertices[int(va[0]) - 1, 1] = float(va[-1][1])
             self.vertices[int(va[0]) - 1, 2] = float(va[-1][2])
 
-
         for fm in self.mod_faces:
             self.faces[fm[0]] = [int(v) for v in fm[-1]]
 
-        print(len(self.faces))
         if len(self.new_faces) > 0:
             self.faces = self.faces + [None, ] * (self.new_faces[-1][0] - len(self.faces))
             for fa in self.new_faces:
                 self.faces[fa[0] - 1] = [int(v) for v in fa[-1]]
-
-            print(self.new_faces[-1])
-        print(len(self.faces))
 
         from_tri_to_quad = [x for x in self.mod_tris if len(x[-1]) == 4]
         from_quad_to_tri = [x for x in self.mod_quads if len(x[-1]) == 3]
@@ -415,7 +415,7 @@ class mMesh:
         if len(self.new_tris) + len(from_quad_to_tri) - len(from_tri_to_quad) < 0:
             reset_tris = True
         if len(self.new_quads) + len(from_tri_to_quad) - len(from_quad_to_tri) < 0:
-            reset_quads = 0
+            reset_quads = True
         self.texCoordCount = len(self.vertices)
         self.normalQuadCount = self.quadCount * 4
         self.normalTrisCount = self.trisCount * 3
@@ -433,58 +433,80 @@ class mMesh:
         nqIndex = 0
 
         if not (reset_quads or reset_tris):
+            print("Update structures")
             if len(self.new_quads) > 0:
                 temp = numpy.zeros((self.new_quads[-1][0] * 4 + 4 - len(self.seqQuadVertices), 3), self.seqQuadVertices.dtype)
                 self.seqQuadVertices = numpy.concatenate((self.seqQuadVertices, temp), axis=0)
 
-                temp = numpy.zeros((self.new_quads[-1][0] * 4 + 4 - len(self.quadColors), 3), self.quadColors.dtype)
-                self.quadColors = numpy.concatenate((self.quadColors, temp), axis=0)
+                #temp = numpy.zeros((self.new_quads[-1][0] * 4 + 4 - len(self.quadColors), 3), self.quadColors.dtype)
+                #self.quadColors = numpy.concatenate((self.quadColors, temp), axis=0)
+                self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
+            self.quadColors.fill(0.5)
 
             if len(self.new_tris) > 0:
                 temp = numpy.zeros((self.new_tris[-1][0] * 3 + 3 - len(self.seqTrisVertices), 3), self.seqTrisVertices.dtype)
                 self.seqTrisVertices = numpy.concatenate((self.seqTrisVertices, temp), axis=0)
 
-                temp = numpy.zeros((self.new_tris[-1][0] * 3 + 3 - len(self.trisColors), 3), self.trisColors.dtype)
-                self.trisColors = numpy.concatenate((self.trisColors, temp), axis=0)
+                #temp = numpy.zeros((self.new_tris[-1][0] * 3 + 3 - len(self.trisColors), 3), self.trisColors.dtype)
+                #self.trisColors = numpy.concatenate((self.trisColors, temp), axis=0)
+
+                self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
+            self.trisColors.fill(0.5)
+
+            to_change = [el[0] for el in self.mod_vertices] + [el[0] for el in self.new_vertices]
+            to_change = list(set(to_change))
+
+            for idx_f, f in enumerate(self.faces):
+                k = 0
+                for v in f:
+                    if (len(f) == 3) and (v in to_change):
+                        self.seqTrisVertices[idx_f * 3 + k, 0] = self.vertices[v-1][0]
+                        self.seqTrisVertices[idx_f * 3 + k, 1] = self.vertices[v-1][1]
+                        self.seqTrisVertices[idx_f * 3 + k, 2] = self.vertices[v-1][2]
+                        self.trisColors[idx_f * 3 + k, 0] = color_map[2][0]
+                        self.trisColors[idx_f * 3 + k, 1] = color_map[2][1]
+                        self.trisColors[idx_f * 3 + k, 2] = color_map[2][2]
+                    if (len(f) == 4) and (v in to_change):
+                        self.seqQuadVertices[idx_f * 4 + k, 0] = self.vertices[v-1][0]
+                        self.seqQuadVertices[idx_f * 4 + k, 1] = self.vertices[v-1][1]
+                        self.seqQuadVertices[idx_f * 4 + k, 2] = self.vertices[v-1][2]
+                        self.quadColors[idx_f * 4 + k, 0] = color_map[2][0]
+                        self.quadColors[idx_f * 4 + k, 1] = color_map[2][1]
+                        self.quadColors[idx_f * 4 + k, 2] = color_map[2][2]
+                    k += 1
 
             for f in self.new_faces + self.mod_faces:
                 k = 0
-                #print(f)
                 for v in f[-1]:
                     v = int(v)
                     if len(f[-1]) == 3:
                         self.seqTrisVertices[f[0] * 3 + k, 0] = self.vertices[v-1][0]
                         self.seqTrisVertices[f[0] * 3 + k, 1] = self.vertices[v-1][1]
                         self.seqTrisVertices[f[0] * 3 + k, 2] = self.vertices[v-1][2]
-                        self.trisColors[f[0] * 3 + k, 0] = color_map[0][0]
-                        self.trisColors[f[0] * 3 + k, 1] = color_map[0][1]
-                        self.trisColors[f[0] * 3 + k, 2] = color_map[0][2]
-                        if False:
-                            if v-1 not in self.seqTrisMap:
-                                self.seqTrisMap[v-1] = [tIndex]
-                            else:
-                                self.seqTrisMap[v-1].append(tIndex)
+                        self.trisColors[f[0] * 3 + k, 0] = color_map[2][0]
+                        self.trisColors[f[0] * 3 + k, 1] = color_map[2][1]
+                        self.trisColors[f[0] * 3 + k, 2] = color_map[2][2]
                         k += 1
                     elif len(f[-1]) == 4:
                         self.seqQuadVertices[f[0] * 4 + k, 0] = self.vertices[v-1][0]
                         self.seqQuadVertices[f[0] * 4 + k, 1] = self.vertices[v-1][1]
                         self.seqQuadVertices[f[0] * 4 + k, 2] = self.vertices[v-1][2]
-                        self.quadColors[f[0] * 4 + k, 0] = color_map[1][0]
-                        self.quadColors[f[0] * 4 + k, 1] = color_map[1][1]
-                        self.quadColors[f[0] * 4 + k, 2] = color_map[1][2]
-                        if False:
-                            if v-1 not in self.seqQuadMap:
-                                self.seqQuadMap[v-1] = [qIndex]
-                            else:
-                                self.seqQuadMap[v-1].append(qIndex)
+                        self.quadColors[f[0] * 4 + k, 0] = color_map[2][0]
+                        self.quadColors[f[0] * 4 + k, 1] = color_map[2][1]
+                        self.quadColors[f[0] * 4 + k, 2] = color_map[2][2]
                         k += 1
         else:
+            print("Total reset")
             self.seqQuadVertices = numpy.zeros((self.quadCount * 4, 3), 'f')
             self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
 
             self.seqTrisVertices = numpy.zeros((self.trisCount * 3, 3), 'f')
             self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
 
+            all_idx = [el[0] for el in self.new_faces] + [el[0] for el in self.mod_faces]
+            all_idx.sort()
+
+            idx = 0
             for f in self.faces:
                 for v in f:
                     vIndex += 1
@@ -493,27 +515,17 @@ class mMesh:
                         self.seqTrisVertices[tIndex, 0] = self.vertices[v-1][0]
                         self.seqTrisVertices[tIndex, 1] = self.vertices[v-1][1]
                         self.seqTrisVertices[tIndex, 2] = self.vertices[v-1][2]
-                        self.trisColors[tIndex, 0] = color_map[0][0]
-                        self.trisColors[tIndex, 1] = color_map[0][1]
-                        self.trisColors[tIndex, 2] = color_map[0][2]
-                        if False:
-                            if v-1 not in self.seqTrisMap:
-                                self.seqTrisMap[v-1] = [tIndex]
-                            else:
-                                self.seqTrisMap[v-1].append(tIndex)
+                        self.trisColors[tIndex, 0] = color_map[0 if idx in all_idx else 2][0]
+                        self.trisColors[tIndex, 1] = color_map[0 if idx in all_idx else 2][1]
+                        self.trisColors[tIndex, 2] = color_map[0 if idx in all_idx else 2][2]
                         tIndex += 1
                     elif len(f) == 4:
                         self.seqQuadVertices[qIndex, 0] = self.vertices[v-1][0]
                         self.seqQuadVertices[qIndex, 1] = self.vertices[v-1][1]
                         self.seqQuadVertices[qIndex, 2] = self.vertices[v-1][2]
-                        self.quadColors[qIndex, 0] = color_map[1][0]
-                        self.quadColors[qIndex, 1] = color_map[1][1]
-                        self.quadColors[qIndex, 2] = color_map[1][2]
-                        if False:
-                            if v-1 not in self.seqQuadMap:
-                                self.seqQuadMap[v-1] = [qIndex]
-                            else:
-                                self.seqQuadMap[v-1].append(qIndex)
+                        self.quadColors[qIndex, 0] = color_map[0 if idx in all_idx else 2][0]
+                        self.quadColors[qIndex, 1] = color_map[0 if idx in all_idx else 2][1]
+                        self.quadColors[qIndex, 2] = color_map[0 if idx in all_idx else 2][2]
                         qIndex += 1
 
         perVertexNormals = {}
@@ -546,13 +558,6 @@ class mMesh:
             fIndex += 1
 
         self.vertices = numpy.asarray(self.vertices, dtype=numpy.float32)
-
-        print("New Vertices detected: " + str(len(self.vertices)))
-        print("New Faces detected: " + str(self.faceCount))
-        print("New Quads detected: " + str(self.quadCount))
-        print("New Tris detected: " + str(self.trisCount))
-
-        print("Done")
 
         return True
 

@@ -251,6 +251,9 @@ class Viewer(object):
         done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
         if done:
             self.loadModel(self.meshes[0], True)
+        else:
+            self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
+            self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
         self.current_step += 1
         pass
 
@@ -311,8 +314,8 @@ class Viewer(object):
 
 
 if __name__ == "__main__":
+    v = Viewer("task01", 0)
     if True:
-        v = Viewer("task01", 0)
         v.mainLoop()
     else:
         m = mMesh(False)
