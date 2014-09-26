@@ -214,7 +214,7 @@ def loadBrushStrokes(step_path, stepno, window=None):
     step_file = json.load(f)
 
     w = 1 if not window else window
-    start_outer = time.time()
+    #start_outer = time.time()
     for k in range(w):
         try:
             step_ops = step_file[str(stepno - k)]
@@ -243,7 +243,7 @@ def loadBrushStrokes(step_path, stepno, window=None):
         except TypeError as e:
             print("ERROR")
             print(e)
-    print("outer loop in %f: " % (time.time() - start_outer))
+    #print("outer loop in %f: " % (time.time() - start_outer))
 
 def getPath(stroke_op):
     path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')

@@ -171,7 +171,7 @@ class Viewer(object):
             except TypeError as e:
                 print("ERROR")
                 print(e)
-        print("outer loop in %f: " % (time.time() - start_outer))
+        #print("outer loop in %f: " % (time.time() - start_outer))
 
 
     def getPath(self, stroke_op):
@@ -251,6 +251,8 @@ class Viewer(object):
         done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
         if done:
             self.loadModel(self.meshes[0], True)
+            self.brush_paths = []
+            self.loadBrushStrokes(self.step_path, self.current_step + 1)
         else:
             self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
             self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
@@ -314,7 +316,7 @@ class Viewer(object):
 
 
 if __name__ == "__main__":
-    v = Viewer("task01", 0)
+    v = Viewer("task01", 6)
     if True:
         v.mainLoop()
     else:
