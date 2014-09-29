@@ -9,6 +9,8 @@ from OpenGL.GLUT import *
 import utility.vbo as uvbo
 from OpenGL.arrays import vbo
 from scipy.spatial import KDTree
+import core
+import bpy
 
 from utility.mmesh import *
 from utility.drawfunctions import *
@@ -41,13 +43,15 @@ class Viewer(object):
         self.gui_objects = []
         self.brush_paths = []
         self.brush_paths_colors = []
+        self.b_size = 0.0
 
         # File paths
-        self.obj_path = "../obj_files/" + model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
-        self.blend_path = "../blend_files/" + model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
-        self.numpy_path = "../numpy_data/" + model_name + "/snap" + str(self.current_step).zfill(6) + "/"
-        self.diff_path = "../diff/" + model_name + "/"
-        self.step_path = "../steps/" + model_name + "/steps.json"
+        self.model_name = model_name
+        self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+        self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+        self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+        self.diff_path = "../diff/" + self.model_name + "/"
+        self.step_path = "../steps/" + self.model_name + "/steps.json"
 
 
     def init(self, load_mesh):
@@ -68,6 +72,7 @@ class Viewer(object):
             start_bs =time.time()
             self.loadBrushStrokes(self.step_path, self.current_step)
             print("Brush loaded in %f" %(time.time() - start_bs))
+            self.b_size = self.load_brush_size_from_blend()[1]
 
         print()
 
@@ -257,6 +262,10 @@ class Viewer(object):
             self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
             self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
         self.current_step += 1
+        self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+        self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+        self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+        self.b_size = self.load_brush_size_from_blend()[1]
         pass
 
     def loadPrevModel(self):
@@ -300,10 +309,19 @@ class Viewer(object):
             glVertex3f(path[k][0], path[k][1], path[k][2])
             glVertex3f(path[k+1][0], path[k+1][1], path[k+1][2])
         glEnd()
-
         glColor3f(0.0, 0.0, 0.0)
         glLineWidth(1.0)
 
+        # TODO: draw sphere for brush size
+        b_size = 0.3
+        glPushMatrix()
+        for p in [el for idx, el in enumerate(path) if idx % 3 == 0]:
+            glColor4f(1.0, 0.0, 0.0, 0.5)
+            glTranslate(p[0], p[1], p[2])
+            glutSolidSphere(float(self.b_size), 20, 20)
+            glTranslate(-p[0], -p[1], -p[2])
+            glColor4f(0.0, 0.0, 0.0, 1.0)
+        glPopMatrix()
 
     def drawBBoxes(self, m):
         drawBBox(m.bbox)
@@ -314,9 +332,22 @@ class Viewer(object):
         m.VBONormals = vbo.VBO(m.normals)
         m.VBOColors = vbo.VBO(m.colors)
 
+    def load_brush_size_from_blend(self):
+        bpy.ops.wm.open_mainfile(filepath=self.blend_path,
+                                 filter_blender=True,
+                                 filemode=8,
+                                 display_type='FILE_DEFAULTDISPLAY',
+                                 load_ui=False,
+                                 use_scripts=True)
+        try:
+            if bpy.data.scenes["Scene"]:
+               return (bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.size,
+                       bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius)
+        except KeyError as e:
+                print('modifier not found')
 
 if __name__ == "__main__":
-    v = Viewer("task01", 6)
+    v = Viewer("task01", 190)
     if True:
         v.mainLoop()
     else:
