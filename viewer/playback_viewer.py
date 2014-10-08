@@ -50,8 +50,15 @@ class Viewer(object):
         self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
-        self.diff_path = "../diff/" + self.model_name + "/"
+        self.diff_path = "../diff_new/" + self.model_name + "/"
         self.step_path = "../steps/" + self.model_name + "/steps.json"
+
+        bs_file = open("../steps/" + self.model_name + "/b_size", "rb")
+        self.brushes_size = pickle.load(bs_file)
+        bs_file.close()
+
+        f = open(self.step_path, 'r')
+        self.steps = json.load(f)
 
 
     def init(self, load_mesh):
@@ -72,7 +79,6 @@ class Viewer(object):
             start_bs =time.time()
             self.loadBrushStrokes(self.step_path, self.current_step)
             print("Brush loaded in %f" %(time.time() - start_bs))
-            self.b_size = self.load_brush_size_from_blend()[1]
 
         print()
 
@@ -152,31 +158,24 @@ class Viewer(object):
 
 
     def loadBrushStrokes(self, step_path, stepno, window=None):
-        f = open(step_path, 'r')
-        step_file = json.load(f)
-
-        w = 1 if not window else window
-        start_outer = time.time()
-        for k in range(w):
-            try:
-                step_ops = step_file[str(stepno - k)]
-                stroke_op = None
-                for op in step_ops:
-                    if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                        stroke_op = op
-                        break
-                if stroke_op:
-                    path = self.getPath(stroke_op)
-                    col = [random.random(), random.random(), random.random()]
-                    self.brush_paths.append(path)
-                    self.brush_paths_colors.append(col)
-            except KeyError as e:
-                print("Step not found")
-                print(e)
-            except TypeError as e:
-                print("ERROR")
-                print(e)
-        #print("outer loop in %f: " % (time.time() - start_outer))
+        try:
+            step_ops = self.steps[str(stepno)]
+            stroke_op = None
+            for op in step_ops:
+                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                    stroke_op = op
+                    break
+            if stroke_op:
+                path = self.getPath(stroke_op)
+                col = [random.random(), random.random(), random.random()]
+                self.brush_paths.append(path)
+                self.brush_paths_colors.append(col)
+        except KeyError as e:
+            print("Step not found")
+            print(e)
+        except TypeError as e:
+            print("ERROR")
+            print(e)
 
 
     def getPath(self, stroke_op):
@@ -252,12 +251,17 @@ class Viewer(object):
 
 
     def loadNextModel(self):
-        print("Loading next model")
+        start = time.time()
         done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
+        print("Applying diff took %f" % (time.time() - start))
         if done:
+            start = time.time()
             self.loadModel(self.meshes[0], True)
+            print("Load model took %f" % (time.time() - start))
             self.brush_paths = []
+            start = time.time()
             self.loadBrushStrokes(self.step_path, self.current_step + 1)
+            print("Load brush took %f" % (time.time() - start))
         else:
             self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
             self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
@@ -265,8 +269,7 @@ class Viewer(object):
         self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
-        self.b_size = self.load_brush_size_from_blend()[1]
-        pass
+        print()
 
     def loadPrevModel(self):
         print("Loading prev model")
@@ -311,14 +314,11 @@ class Viewer(object):
         glEnd()
         glColor3f(0.0, 0.0, 0.0)
         glLineWidth(1.0)
-
-        # TODO: draw sphere for brush size
-        b_size = 0.3
         glPushMatrix()
         for p in [el for idx, el in enumerate(path) if idx % 3 == 0]:
             glColor4f(1.0, 0.0, 0.0, 0.5)
             glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.b_size), 20, 20)
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
             glTranslate(-p[0], -p[1], -p[2])
             glColor4f(0.0, 0.0, 0.0, 1.0)
         glPopMatrix()
@@ -332,22 +332,8 @@ class Viewer(object):
         m.VBONormals = vbo.VBO(m.normals)
         m.VBOColors = vbo.VBO(m.colors)
 
-    def load_brush_size_from_blend(self):
-        bpy.ops.wm.open_mainfile(filepath=self.blend_path,
-                                 filter_blender=True,
-                                 filemode=8,
-                                 display_type='FILE_DEFAULTDISPLAY',
-                                 load_ui=False,
-                                 use_scripts=True)
-        try:
-            if bpy.data.scenes["Scene"]:
-               return (bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.size,
-                       bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius)
-        except KeyError as e:
-                print('modifier not found')
-
 if __name__ == "__main__":
-    v = Viewer("task01", 190)
+    v = Viewer("task01", 0)
     if True:
         v.mainLoop()
     else:

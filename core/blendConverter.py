@@ -5,8 +5,8 @@ from os.path import isfile, join
 
 from utility import common
 
-blend_files_path = "blend_files/task02"
-obj_files_path = "obj_files/task02"
+blend_files_path = "../blend_files/task06"
+obj_files_path = "../obj_files/task06"
 
 onlyfiles = common.get_files_from_directory(blend_files_path, ['blend'])
 
@@ -50,25 +50,26 @@ def camera_position(matrix):
 
 
 for file in onlyfiles:
-    bpy.ops.wm.open_mainfile(filepath=file[0],
-                             filter_blender=True,
-                             filemode=8,
-                             display_type='FILE_DEFAULTDISPLAY',
-                             load_ui=False,
-                             use_scripts=True)
-
     try:
-        bpy.data.objects["Cube"].modifiers["Multires"].levels = bpy.data.objects["Cube"].modifiers["Multires"].sculpt_levels
-    except KeyError as e:
-        print('modifier not found')
+        idx = int((file[0].split('/')[-1]).split('.')[0][4:])
+    except ValueError:
+        idx = 0
+    if idx > 541:
+        bpy.ops.wm.open_mainfile(filepath=file[0],
+                                 filter_blender=True,
+                                 filemode=8,
+                                 display_type='FILE_DEFAULTDISPLAY',
+                                 load_ui=False,
+                                 use_scripts=True)
+        try:
+            bpy.data.objects["Basemesh_FullbodyMale"].modifiers["Multires"].levels = bpy.data.objects["Basemesh_FullbodyMale"].modifiers["Multires"].sculpt_levels
+            #bpy.data.objects["Cube"].modifiers["Multires"].levels = bpy.data.objects["Cube"].modifiers["Multires"].sculpt_levels
+        except KeyError as e:
+            print('modifier not found')
 
-    #for v in views(bpy.data.window_managers['WinMan'].windows[0]):
-    #    print(camera(v))
-
-    print("==========================================================")
-
-    bpy.ops.export_scene.obj(filepath= obj_files_path + "/" + file[1].split('.')[0] + ".obj",
-                             axis_forward='-Z',
-                             axis_up='Y')
-
-    #bpy.ops.export_scene.autodesk_3ds(filepath= obj_files_path + "/" + file[1].split('.')[0] + ".3ds")
+        #for v in views(bpy.data.window_managers['WinMan'].windows[0]):
+        #    print(camera(v))
+        bpy.ops.export_scene.obj(filepath= obj_files_path + "/" + file[1].split('.')[0] + ".obj",
+                                 axis_forward='-Z',
+                                 axis_up='Y')
+        print("==========================================================")

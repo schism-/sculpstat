@@ -6,6 +6,7 @@ import numpy.random
 import pickle
 import time
 import nearpy
+from collections import defaultdict
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
 
@@ -85,6 +86,7 @@ class mMesh:
         self.mod_faces = None
         self.new_faces = None
         self.del_faces = None
+        self.upd_faces = None
 
     def loadANNEngine(self):
         # Dimension of our vector space
@@ -220,7 +222,9 @@ class mMesh:
         self.loadVertices(self.vertices)
 
         self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
+        #self.quadNormals = numpy.lib.pad(self.quadNormals, ((0, self.quadCount - len(self.quadNormals)), (0,0)), "edge")
         self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
+        #self.trisNormals = numpy.lib.pad(self.trisNormals, ((0, self.trisCount - len(self.trisNormals)), (0,0)), "edge")
 
         #self.seqTrisMap = numpy.zeros((self.trisCount * 3, 20), 'i')
         #self.seqTrisMapIdx = numpy.zeros((self.trisCount * 3, 1), 'i')
@@ -328,6 +332,7 @@ class mMesh:
         f_mod = []
         f_add = []
         f_del = []
+        f_upd = []
 
         q_mod = []
         q_add = []
@@ -363,17 +368,19 @@ class mMesh:
                     q_del.append(line[1:])
                 elif len(line[-2]) == 3:
                     t_del.append(line[1:])
+            elif line[0] == 'fu':
+                f_upd.append(line[1:])
 
-        return [v_mod, q_mod, t_mod, v_add, q_add, t_add, v_del, q_del, t_del, f_mod, f_add, f_del]
+        return [v_mod, q_mod, t_mod, v_add, q_add, t_add, v_del, q_del, t_del, f_mod, f_add, f_del, f_upd]
 
     def apply_diff(self, current_step, diff_path, reverse=False):
-        print("Applying diff " + str(current_step))
-
+        print("\tApplying diff " + str(current_step))
+        start = time.time()
         self.mod_vertices, self.mod_quads, self.mod_tris, \
         self.new_vertices, self.new_quads, self.new_tris, \
         self.del_vertices, self.del_quads, self.del_tris,\
-        self.mod_faces, self.new_faces, self.del_faces = self.read_diff(diff_path + "diff_" + str(current_step))
-
+        self.mod_faces, self.new_faces, self.del_faces, self.upd_faces = self.read_diff(diff_path + "diff_" + str(current_step))
+        print("Read diff took %f" % (time.time() - start))
         if len(self.mod_vertices) + len(self.mod_faces) + len(self.new_vertices) + len(self.new_faces) == 0:
             self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
             self.quadColors.fill(0.5)
@@ -381,14 +388,15 @@ class mMesh:
             self.trisColors.fill(0.5)
             return False
 
-        print("--Diff stats--")
-        print("\t\t\t\t\tMOD \t\tNEW \t\tDEL")
-        print("\tVerts stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_vertices), len(self.new_vertices), len(self.del_vertices)))
-        print("\tQuads stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_quads), len(self.new_quads), len(self.del_quads)))
-        print("\tTris stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_tris), len(self.new_tris), len(self.del_tris)))
-        print("\tTris stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_faces), len(self.new_faces), len(self.del_faces)))
+        print("\t--Diff stats--")
+        print("\t\t\t\t\t\tMOD \t\tNEW \t\tDEL")
+        print("\t\tVerts stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_vertices), len(self.new_vertices), len(self.del_vertices)))
+        print("\t\tQuads stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_quads), len(self.new_quads), len(self.del_quads)))
+        print("\t\tTris stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_tris), len(self.new_tris), len(self.del_tris)))
+        print("\t\tTris stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_faces), len(self.new_faces), len(self.del_faces)))
 
         #update vertices and faces list
+        start = time.time()
         for vm in self.mod_vertices:
             self.vertices[int(vm[0]), 0] = float(vm[-1][0])
             self.vertices[int(vm[0]), 1] = float(vm[-1][1])
@@ -410,6 +418,7 @@ class mMesh:
 
         from_tri_to_quad = [x for x in self.mod_tris if len(x[-1]) == 4]
         from_quad_to_tri = [x for x in self.mod_quads if len(x[-1]) == 3]
+        print("Update verts and faces took %f" % (time.time() - start))
 
         self.vertexCount = len(self.vertices)
         self.quadCount += len(self.new_quads) + len(from_tri_to_quad) - len(from_quad_to_tri)
@@ -425,8 +434,14 @@ class mMesh:
         self.texCoordCount = len(self.vertices)
         self.normalQuadCount = self.quadCount * 4
         self.normalTrisCount = self.trisCount * 3
-        self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
-        self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
+        #self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
+        #self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
+
+        #self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
+        self.quadNormals = numpy.lib.pad(self.quadNormals, ((0, max(0, self.normalQuadCount - len(self.quadNormals))), (0,0)), "edge")
+        #self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
+        self.trisNormals = numpy.lib.pad(self.trisNormals, ((0, max(0, self.normalTrisCount - len(self.trisNormals))), (0,0)), "edge")
+
         fIndex = 0
         qIndex = 0
         tIndex = 0
@@ -435,7 +450,7 @@ class mMesh:
         nqIndex = 0
 
         if not (reset_quads or reset_tris):
-            print("Update structures")
+            start = time.time()
             if len(self.new_quads) > 0:
                 temp = numpy.zeros((self.new_quads[-1][0] * 4 + 4 - len(self.seqQuadVertices), 3), self.seqQuadVertices.dtype)
                 self.seqQuadVertices = numpy.concatenate((self.seqQuadVertices, temp), axis=0)
@@ -469,51 +484,9 @@ class mMesh:
                             self.quadColors[idx_f * 4 + k, 1] = color_map[2][1]
                             self.quadColors[idx_f * 4 + k, 2] = color_map[2][2]
                     k += 1
-
-            '''
-            for f in self.mod_faces:
-                k = 0
-                for v in f[-1]:
-                    v = int(v)
-                    if len(f[-1]) == 3:
-                        self.seqTrisVertices[f[0] * 3 + k, 0] = self.vertices[v-1][0]
-                        self.seqTrisVertices[f[0] * 3 + k, 1] = self.vertices[v-1][1]
-                        self.seqTrisVertices[f[0] * 3 + k, 2] = self.vertices[v-1][2]
-                        #self.trisColors[f[0] * 3 + k, 0] = color_map[2][0]
-                        #self.trisColors[f[0] * 3 + k, 1] = color_map[2][1]
-                        #self.trisColors[f[0] * 3 + k, 2] = color_map[2][2]
-                        k += 1
-                    elif len(f[-1]) == 4:
-                        self.seqQuadVertices[f[0] * 4 + k, 0] = self.vertices[v-1][0]
-                        self.seqQuadVertices[f[0] * 4 + k, 1] = self.vertices[v-1][1]
-                        self.seqQuadVertices[f[0] * 4 + k, 2] = self.vertices[v-1][2]
-                        #self.quadColors[f[0] * 4 + k, 0] = color_map[2][0]
-                        #self.quadColors[f[0] * 4 + k, 1] = color_map[2][1]
-                        #self.quadColors[f[0] * 4 + k, 2] = color_map[2][2]
-                        k += 1
-            for f in self.new_faces:
-                k = 0
-                for v in f[-1]:
-                    v = int(v)
-                    if len(f[-1]) == 3:
-                        self.seqTrisVertices[(f[0] - 1) * 3 + k, 0] = self.vertices[v-1][0]
-                        self.seqTrisVertices[(f[0] - 1) * 3 + k, 1] = self.vertices[v-1][1]
-                        self.seqTrisVertices[(f[0] - 1) * 3 + k, 2] = self.vertices[v-1][2]
-                        #self.trisColors[(f[0] - 1) * 3 + k, 0] = color_map[2][0]
-                        #self.trisColors[(f[0] - 1) * 3 + k, 1] = color_map[2][1]
-                        #self.trisColors[(f[0] - 1) * 3 + k, 2] = color_map[2][2]
-                        k += 1
-                    elif len(f[-1]) == 4:
-                        self.seqQuadVertices[(f[0] - 1) * 4 + k, 0] = self.vertices[v-1][0]
-                        self.seqQuadVertices[(f[0] - 1) * 4 + k, 1] = self.vertices[v-1][1]
-                        self.seqQuadVertices[(f[0] - 1) * 4 + k, 2] = self.vertices[v-1][2]
-                        #self.quadColors[(f[0] - 1) * 4 + k, 0] = color_map[2][0]
-                        #self.quadColors[(f[0] - 1) * 4 + k, 1] = color_map[2][1]
-                        #self.quadColors[(f[0] - 1) * 4 + k, 2] = color_map[2][2]
-                        k += 1
-            '''
+            print("Update structures took %f" % (time.time() - start))
         else:
-            print("Total reset")
+            start = time.time()
             self.seqQuadVertices = numpy.zeros((self.quadCount * 4, 3), 'f')
             self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
 
@@ -544,9 +517,15 @@ class mMesh:
                         self.quadColors[qIndex, 1] = color_map[0 if idx in all_idx else 2][1]
                         self.quadColors[qIndex, 2] = color_map[0 if idx in all_idx else 2][2]
                         qIndex += 1
+            print("Total reset took %f" % (time.time() - start))
 
+
+        start = time.time()
+        #perVertexNormals = defaultdict(lambda: [0, [0, 0, 0]])
         perVertexNormals = {}
-        for f in self.faces:
+
+        for f_idx in self.upd_faces:
+            f = self.faces[f_idx[0]]
             normal = self.computeNormal([self.vertices[v-1] for v in f])
             for v in f:
                 if v in perVertexNormals:
@@ -558,23 +537,33 @@ class mMesh:
                     perVertexNormals[v] = [None, None]
                     perVertexNormals[v][1] = normal
                     perVertexNormals[v][0] = 1
+                    '''
+                    perVertexNormals[v][1] = [(perVertexNormals[v][1][0] * perVertexNormals[v][0] + normal[0]) / (perVertexNormals[v][0] + 1),
+                                              (perVertexNormals[v][1][1] * perVertexNormals[v][0] + normal[1]) / (perVertexNormals[v][0] + 1),
+                                              (perVertexNormals[v][1][2] * perVertexNormals[v][0] + normal[2]) / (perVertexNormals[v][0] + 1)]
+                    perVertexNormals[v][0] += 1
+                    '''
 
-        for f in self.faces:
+        for f_idx in self.upd_faces:
+            f = self.faces[f_idx[0]]
+            k = 0
             if len(f) == 3:
                 for v in f:
-                    self.trisNormals[ntIndex, 0] = perVertexNormals[v][1][0]
-                    self.trisNormals[ntIndex, 1] = perVertexNormals[v][1][1]
-                    self.trisNormals[ntIndex, 2] = perVertexNormals[v][1][2]
-                    ntIndex += 1
+                    self.trisNormals[3 * f_idx[0] + k, 0] = perVertexNormals[v][1][0]
+                    self.trisNormals[3 * f_idx[0] + k, 1] = perVertexNormals[v][1][1]
+                    self.trisNormals[3 * f_idx[0] + k, 2] = perVertexNormals[v][1][2]
+                    k += 1
             elif len(f) == 4:
                 for v in f:
-                    self.quadNormals[nqIndex, 0] = perVertexNormals[v][1][0]
-                    self.quadNormals[nqIndex, 1] = perVertexNormals[v][1][1]
-                    self.quadNormals[nqIndex, 2] = perVertexNormals[v][1][2]
-                    nqIndex += 1
-            fIndex += 1
+                    self.quadNormals[4 * f_idx[0] + k, 0] = perVertexNormals[v][1][0]
+                    self.quadNormals[4 * f_idx[0] + k, 1] = perVertexNormals[v][1][1]
+                    self.quadNormals[4 * f_idx[0] + k, 2] = perVertexNormals[v][1][2]
+                    k += 1
+        print("Update normals took %f" % (time.time() - start))
 
+        start = time.time()
         self.vertices = numpy.asarray(self.vertices, dtype=numpy.float32)
+        print("Verts to numpy took %f" % (time.time() - start))
 
         return True
 

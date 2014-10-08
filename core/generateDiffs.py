@@ -42,16 +42,25 @@ def compute_diff(file_path, file1, file2):
     f2.close()
 
     diff_lines = []
-
+    updated_verts = []
     for k in range(min(len(f1_v_lines), len(f2_v_lines))):
         if not(f1_v_lines[k] == f2_v_lines[k]):
             diff_lines.append(["vm", k, f1_v_lines[k].split(' ')[1:], f2_v_lines[k].split(' ')[1:]])
+            updated_verts.append(k)
     if len(f1_v_lines) < len(f2_v_lines):
         for idx, el in enumerate(f2_v_lines[len(f1_v_lines):]):
             diff_lines.append(["va", len(f1_v_lines) + 1 + idx, '', el.split(' ')[1:]])
+            updated_verts.append(len(f1_v_lines) + idx)
     elif len(f2_v_lines) < len(f1_v_lines):
         for idx, el in enumerate(f1_v_lines[len(f2_v_lines):]):
             diff_lines.append(["vd", len(f2_v_lines) + 1 + idx, el.split(' ')[1:], ''])
+
+    for idx, el in enumerate(f2_f_lines):
+        verts = el.split(' ')[1:]
+        for v in verts:
+            v = int(v)
+            if (v + 1) in updated_verts:
+                diff_lines.append(["fu", idx, None, None])
 
     for k in range(min(len(f1_f_lines), len(f2_f_lines))):
         if not(f1_f_lines[k] == f2_f_lines[k]):
@@ -61,7 +70,7 @@ def compute_diff(file_path, file1, file2):
             diff_lines.append(["fa", len(f1_f_lines) + 1 + idx, '', el.split(' ')[1:]])
     elif len(f2_f_lines) < len(f1_f_lines):
         for idx, el in enumerate(f1_f_lines[len(f2_f_lines):]):
-            diff_lines.append(["fd", len(fd_f_lines) + 1 + idx, el.split(' ')[1:], ''])
+            diff_lines.append(["fd", len(f2_f_lines) + 1 + idx, el.split(' ')[1:], ''])
 
     dumb_diff_time = time.time() - start_dumbdiff
     return [diff_lines, dumb_diff_time, 0.0]
@@ -124,44 +133,42 @@ def reallocate_array(old_array):
 
 
 if __name__ == "__main__":
-    obj_files_path = "../obj_files/task01"
-    diff_files_path = "../diff/task01"
+    for name, end in [["task01", 100]]: # , ["gargoyle2", 1058], ["monster", 967]]:
+        obj_files_path = "../obj_files/" + name
+        diff_files_path = "../diff_new/" + name
 
-    ddtotal = 0.0
-    sdtotal = 0.0
+        ddtotal = 0.0
+        sdtotal = 0.0
 
-    start = 0
-    end = 10
+        start = 0
 
-    # noinspection PyTypeChecker
-    for j in range(start, end):
-        diff_lines, dumb_diff_time, _ = compute_diff(obj_files_path, j, j+1)
-        diff_set_verts, same_verts, diff_set_faces, same_faces, set_diff_time = compute_diff_set(obj_files_path, j, j+1)
+        # noinspection PyTypeChecker
+        for j in range(start, end):
+            diff_lines, dumb_diff_time, _ = compute_diff(obj_files_path, j, j+1)
+            #diff_set_verts, same_verts, diff_set_faces, same_faces, set_diff_time = compute_diff_set(obj_files_path, j, j+1)
 
-        print("==============================================")
-        print("Diff lines(dumb): " + str(len(diff_lines)))
-        print("----------------------------------------------")
-        print("Diff verts(set): " + str(len(diff_set_verts)))
-        print("Same verts(set): " + str(len(same_verts)))
-        print()
-        print("Diff faces(set): " + str(len(diff_set_faces)))
-        print("Same faces(set): " + str(len(same_faces)))
-        print()
-        print("Diff lines(set): " + str(len(diff_set_verts) + len(diff_set_faces)))
-        print("==============================================")
+            #print("==============================================")
+            print(str(j) + ") " + name + " Diff lines(dumb): " + str(len(diff_lines)))
+            #print("----------------------------------------------")
+            #print("Diff verts(set): " + str(len(diff_set_verts)))
+            #print("Same verts(set): " + str(len(same_verts)))
+            #print()
+            #print("Diff faces(set): " + str(len(diff_set_faces)))
+            #print("Same faces(set): " + str(len(same_faces)))
+            #print()
+            #print("Diff lines(set): " + str(len(diff_set_verts) + len(diff_set_faces)))
+            #print("==============================================")
 
-        ddtotal += dumb_diff_time
-        sdtotal += set_diff_time
+            ddtotal += dumb_diff_time
+            #sdtotal += set_diff_time
 
-        '''
-        fh = open(diff_files_path + "/diff_" + str(j), "wb+")
-        if len(diffed_lines) > 0:
-            pickle.dump(diffed_lines, fh)
-        else:
-            pickle.dump(["nodiff"], fh)
-        fh.close()
-        '''
+            fh = open(diff_files_path + "/diff_" + str(j), "wb+")
+            if len(diff_lines) > 0:
+                pickle.dump(diff_lines, fh)
+            else:
+                pickle.dump(["nodiff"], fh)
+            fh.close()
 
-    print("- TOTAL TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal, sdtotal))
-    print("- MEAN TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal/(end - 1), sdtotal/(end - 1)))
+        print("- TOTAL TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal, sdtotal))
+        print("- MEAN TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal/(end - 1), sdtotal/(end - 1)))
 
