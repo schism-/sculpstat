@@ -30,7 +30,7 @@ class BrushData(object):
                 print('modifier not found')
 
     def load_brushes_size(self):
-        blend_files = common.get_files_from_directory("../blend_files/" + self.model_name + "/", ['blend'])
+        blend_files = common.get_files_from_directory("../blend_files/" + self.model_name + "/", ['blend'], "snap")
         brush_sizes = []
         for file in blend_files:
             bpy.ops.wm.open_mainfile(filepath=file[0], filter_blender=True,
@@ -64,6 +64,8 @@ class BrushData(object):
                     p = self.getPath(stroke_op)
                     if len(p) > 0:
                         self.paths.append(p)
+                    else:
+                        self.paths.append([[0.0, 0.0, 0.0]])
                 else:
                     if k > 0:
                         self.paths.append(self.paths[-1])
@@ -184,8 +186,10 @@ class BrushData(object):
         return v/norm
 
 if __name__ == "__main__":
-    bd = BrushData("task01")
-    bd.load_brush_strokes(1720)
+    bd = BrushData("monster")
+
+    bd.load_brush_strokes(967)
+    bd.load_brushes_size()
 
     brush_data = []
     for path in bd.paths:
@@ -196,7 +200,8 @@ if __name__ == "__main__":
             #print("len: %f" % l)
             #print("BBOX points: %s, vol: %f " % (bbox_p, vol))
             brush_data.append([bbox_p, l, vol])
-
+        else:
+            brush_data.append([[], 0, 0])
     bd_file = open("../steps/" + bd.model_name + "/b_data", "wb+")
     pickle.dump(brush_data, bd_file)
     bd_file.close()

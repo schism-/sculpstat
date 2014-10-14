@@ -9,6 +9,7 @@ from OpenGL.GLUT import *
 import utility.vbo as uvbo
 from OpenGL.arrays import vbo
 from scipy.spatial import KDTree
+from threading import Timer
 import core
 import bpy
 
@@ -34,6 +35,7 @@ class Viewer(object):
         #Render variables
         self.g_fVBOSupported = True
         self.draw_gui = False
+        self.draw_brushes = True
         self.load_brushes = True
         self.is_numpy = False
         self.current_step = current_step
@@ -47,7 +49,7 @@ class Viewer(object):
 
         # File paths
         self.model_name = model_name
-        self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+        self.obj_path = "../obj2_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
         self.diff_path = "../diff_new/" + self.model_name + "/"
@@ -59,6 +61,8 @@ class Viewer(object):
 
         f = open(self.step_path, 'r')
         self.steps = json.load(f)
+
+        self.timer = None
 
 
     def init(self, load_mesh):
@@ -109,7 +113,7 @@ class Viewer(object):
 
     def mainLoop(self, load_mesh=None):
         glutInit(sys.argv)
-        glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH )
+        glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL )
         glutInitWindowSize(*self.SCREEN_SIZE)
         glutInitWindowPosition(1000, 200)
         self.window = glutCreateWindow("obj viewer 0.1")
@@ -193,7 +197,7 @@ class Viewer(object):
         return path
 
     def drawScene(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glEnable(GL_BLEND)
         glEnable(GL_LINE_SMOOTH)
@@ -219,21 +223,27 @@ class Viewer(object):
                     self.drawBBoxes(m)
                 glPopMatrix()
 
-        p_idx = 0
-        for p in self.brush_paths:
-            glPushMatrix()
-            self.drawBrushPath(p, p_idx)
-            glPopMatrix()
-            p_idx += 1
+        if self.draw_brushes:
+            p_idx = 0
+            for p in self.brush_paths:
+                glPushMatrix()
+                self.drawBrushPath(p, p_idx)
+                glPopMatrix()
+                p_idx += 1
 
         #Draw all the interface here
         if self.draw_gui:
             glDisable( GL_LIGHTING )
             glMatrixMode(GL_PROJECTION)
             glLoadIdentity()
-            glOrtho(0, float(xSize), float(ySize), 0, -1, 1)
+            glOrtho(0, float(xSize), 0, float(ySize), -10, 10)
             glMatrixMode(GL_MODELVIEW)
             glLoadIdentity()
+            glColor3f(1.0, 0.0, 0.0)
+            for idx, c in enumerate(str(self.current_step)):
+                glTranslatef(10.0, 0.0, 0.0)
+                glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, ord(c))
+            glColor3f(0.0, 0.0, 0.0)
             for obj in self.gui_objects:
                 obj.draw()
             glEnable( GL_LIGHTING )
@@ -249,10 +259,12 @@ class Viewer(object):
         gluPerspective(45.0 , float(width)/float(height), 0.1, 100.0)
         glMatrixMode(GL_MODELVIEW)
 
-
     def loadNextModel(self):
         start = time.time()
-        done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
+
+        #done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
+        done = self.meshes[0].apply_diff_set(self.current_step, self.diff_path, reverse=False)
+
         print("Applying diff took %f" % (time.time() - start))
         if done:
             start = time.time()
@@ -269,7 +281,6 @@ class Viewer(object):
         self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
-        print()
 
     def loadPrevModel(self):
         print("Loading prev model")
@@ -306,7 +317,8 @@ class Viewer(object):
 
     def drawBrushPath(self, path, idx):
         glColor3f(*self.brush_paths_colors[idx])
-        glLineWidth(4.0)
+        glDepthRange(0.0, 0.9)
+        glLineWidth(5.0)
         glBegin(GL_LINES)
         for k in range(len(path) - 1):
             glVertex3f(path[k][0], path[k][1], path[k][2])
@@ -314,14 +326,36 @@ class Viewer(object):
         glEnd()
         glColor3f(0.0, 0.0, 0.0)
         glLineWidth(1.0)
+        glDepthRange(0.0, 1.0)
+
         glPushMatrix()
+        glColor4f(1.0, 0.0, 0.0, 1.0)
         for p in [el for idx, el in enumerate(path) if idx % 3 == 0]:
-            glColor4f(1.0, 0.0, 0.0, 0.5)
             glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
+
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+            glDepthMask(GL_FALSE)
+            glDepthFunc(GL_EQUAL)
+            glStencilFunc(GL_ALWAYS, 1, 0)
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
+
+            glDisable(GL_CULL_FACE)
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 100, 100)
+
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
+            glStencilFunc(GL_NOTEQUAL, 0, 0)
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
+            glDisable(GL_DEPTH_TEST)
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 100, 100)
+
+            glDepthMask(GL_TRUE)
+            glEnable(GL_DEPTH_TEST)
+            glDepthFunc(GL_LEQUAL)
+
             glTranslate(-p[0], -p[1], -p[2])
-            glColor4f(0.0, 0.0, 0.0, 1.0)
+        glColor4f(0.0, 0.0, 0.0, 1.0)
         glPopMatrix()
+
 
     def drawBBoxes(self, m):
         drawBBox(m.bbox)
@@ -333,7 +367,7 @@ class Viewer(object):
         m.VBOColors = vbo.VBO(m.colors)
 
 if __name__ == "__main__":
-    v = Viewer("task01", 0)
+    v = Viewer("task01", 50)
     if True:
         v.mainLoop()
     else:
