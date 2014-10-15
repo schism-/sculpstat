@@ -20,7 +20,7 @@ from utility.keyboardInteractor import KeyboardInteractor
 
 class Viewer(object):
 
-    def __init__(self, model_name, current_step = 0):
+    def __init__(self, model_name, current_step = 0, steps=None):
 
         # Helper classes
         self.mouseInteractor = None
@@ -34,11 +34,15 @@ class Viewer(object):
 
         #Render variables
         self.g_fVBOSupported = True
-        self.draw_gui = False
+        self.draw_gui = True
         self.draw_brushes = True
         self.load_brushes = True
         self.is_numpy = False
-        self.current_step = current_step
+        self.is_steps = steps
+        if steps:
+            self.current_step = 0
+        else:
+            self.current_step = current_step
 
         # Rendered objects
         self.meshes = []
@@ -52,8 +56,12 @@ class Viewer(object):
         self.obj_path = "../obj2_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
-        self.diff_path = "../diff_new/" + self.model_name + "/"
-        self.step_path = "../steps/" + self.model_name + "/steps.json"
+        if steps:
+            self.diff_path = "../diff_new/" + self.model_name + "/step_" + str(steps) + "/"
+            self.step_path = "../steps/" + self.model_name + "/steps_clust" + str(steps) + ".json"
+        else:
+            self.diff_path = "../diff_new/" + self.model_name + "/"
+            self.step_path = "../steps/" + self.model_name + "/steps.json"
 
         bs_file = open("../steps/" + self.model_name + "/b_size", "rb")
         self.brushes_size = pickle.load(bs_file)
@@ -79,10 +87,10 @@ class Viewer(object):
         self.loadFinalCandidate(load_mesh)
         print("Models loaded in %f" %(time.time() - start_lfc))
 
-        if self.load_brushes:
-            start_bs =time.time()
-            self.loadBrushStrokes(self.step_path, self.current_step)
-            print("Brush loaded in %f" %(time.time() - start_bs))
+        #if self.load_brushes:
+        #    start_bs =time.time()
+        #    self.loadBrushStrokes(self.step_path, self.current_step)
+        #    print("Brush loaded in %f" %(time.time() - start_bs))
 
         print()
 
@@ -164,16 +172,16 @@ class Viewer(object):
     def loadBrushStrokes(self, step_path, stepno, window=None):
         try:
             step_ops = self.steps[str(stepno)]
-            stroke_op = None
+            stroke_ops = []
             for op in step_ops:
                 if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                    stroke_op = op
-                    break
-            if stroke_op:
-                path = self.getPath(stroke_op)
-                col = [random.random(), random.random(), random.random()]
-                self.brush_paths.append(path)
-                self.brush_paths_colors.append(col)
+                    stroke_ops.append(op)
+            if len(stroke_ops) > 0:
+                for stroke_op in stroke_ops:
+                    path = self.getPath(stroke_op)
+                    col = [random.random(), random.random(), random.random()]
+                    self.brush_paths.append(path)
+                    self.brush_paths_colors.append(col)
         except KeyError as e:
             print("Step not found")
             print(e)
@@ -272,7 +280,7 @@ class Viewer(object):
             print("Load model took %f" % (time.time() - start))
             self.brush_paths = []
             start = time.time()
-            self.loadBrushStrokes(self.step_path, self.current_step + 1)
+            self.loadBrushStrokes(self.step_path, self.current_step if self.is_steps else self.current_step + 1)
             print("Load brush took %f" % (time.time() - start))
         else:
             self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
@@ -317,7 +325,7 @@ class Viewer(object):
 
     def drawBrushPath(self, path, idx):
         glColor3f(*self.brush_paths_colors[idx])
-        glDepthRange(0.0, 0.9)
+        glDepthRange(0.0, 0.95)
         glLineWidth(5.0)
         glBegin(GL_LINES)
         for k in range(len(path) - 1):
@@ -328,33 +336,19 @@ class Viewer(object):
         glLineWidth(1.0)
         glDepthRange(0.0, 1.0)
 
+        glDepthFunc(GL_GEQUAL)
+        glEnable(GL_CULL_FACE)
+        glCullFace(GL_FRONT)
         glPushMatrix()
-        glColor4f(1.0, 0.0, 0.0, 1.0)
-        for p in [el for idx, el in enumerate(path) if idx % 3 == 0]:
+        glColor4f(1.0, 0.0, 0.0, 0.15)
+        for p in [el for idx, el in enumerate(path) if idx % 5 == 0]:
             glTranslate(p[0], p[1], p[2])
-
-            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
-            glDepthMask(GL_FALSE)
-            glDepthFunc(GL_EQUAL)
-            glStencilFunc(GL_ALWAYS, 1, 0)
-            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)
-
-            glDisable(GL_CULL_FACE)
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 100, 100)
-
-            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE)
-            glStencilFunc(GL_NOTEQUAL, 0, 0)
-            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP)
-            glDisable(GL_DEPTH_TEST)
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 100, 100)
-
-            glDepthMask(GL_TRUE)
-            glEnable(GL_DEPTH_TEST)
-            glDepthFunc(GL_LEQUAL)
-
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
             glTranslate(-p[0], -p[1], -p[2])
         glColor4f(0.0, 0.0, 0.0, 1.0)
         glPopMatrix()
+        glDepthFunc(GL_LEQUAL)
+        glDisable(GL_CULL_FACE)
 
 
     def drawBBoxes(self, m):
@@ -367,7 +361,7 @@ class Viewer(object):
         m.VBOColors = vbo.VBO(m.colors)
 
 if __name__ == "__main__":
-    v = Viewer("task01", 50)
+    v = Viewer("task01", 230)
     if True:
         v.mainLoop()
     else:

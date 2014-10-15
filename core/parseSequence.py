@@ -119,11 +119,10 @@ def parse_single_step_to_json(line_data):
         if debug:
             print('=================================================')
 
-def parse_file(model_name, files_path):
+def parse_file(files_path):
     f = open(files_path, 'r')
     data = {}
     current_step = 0
-
     for line in f:
         line_data = line.split(' ')
         if not line_data[0].startswith('-'):
@@ -136,14 +135,11 @@ def parse_file(model_name, files_path):
         data[current_step].append(parse_single_step_to_json(line_data))
 
         #parse additional data
-        camera_data = get_camera_data(model_name, current_step)
-        data[current_step].append(camera_data)
+        #camera_data = get_camera_data(model_name, current_step)
+        #data[current_step].append(camera_data)
     return data
 
 def get_camera_data(model_name, stepno):
-
-    file
-
     bpy.ops.wm.open_mainfile(filepath=file[0],
                              filter_blender=True,
                              filemode=8,
@@ -180,24 +176,38 @@ def get_different_ops(steps_files_path):
     for el in op_set:
         print(el)
 
+def cluster_data(filtered_data, steps):
+    clustered_data = {}
+    for d in filtered_data:
+        if d // steps not in clustered_data:
+            clustered_data[d // steps] = filtered_data[d]
+        else:
+            clustered_data[d // steps] += filtered_data[d]
+
+    return clustered_data
+
+
 
 
 if __name__ == "__main__":
 
-    model_name = "monster"
+    model_name = "task01"
     steps_files_path = "../steps/" + model_name + "/steps.txt"
+    steps = 10
 
     start = time.time()
-    final_data = parse_file(model_name, steps_files_path)
+    final_data = parse_file(steps_files_path)
     end = time.time()
     print("Took %f seconds" % (end - start))
 
     filtered_data = filter_data(final_data)
-    for step in filtered_data:
+    clustered_data = cluster_data(filtered_data, steps)
+
+    for step in clustered_data:
         print(step)
-        for op in filtered_data[step]:
+        for op in clustered_data[step]:
             print(str(op)[:100])
 
-    out = open("../steps/" + model_name + "/steps.json", "w")
-    json.dump(filtered_data, out, indent=4, separators=(',', ': '))
+    out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
+    json.dump(clustered_data, out, indent=4, separators=(',', ': '))
     out.close()

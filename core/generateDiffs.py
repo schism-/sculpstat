@@ -1,8 +1,9 @@
 __author__ = 'christian'
 
-import numpy as np
 import time
 import pickle
+import os.path
+import numpy as np
 
 class DiffEntry(object):
     def __init__(self, key, data, set_name):
@@ -309,10 +310,72 @@ def reallocate_array(old_array):
     temp = np.zeros(old_array.shape, old_array.dtype)
     return np.concatenate((old_array, temp), axis=0)
 
+def generate_diff(models, obj_path, diff_path):
+    """
+    Generates diff between OBJ files
+    :param models: in the form of [model_name, start, end, step]
+    :param obj_path: path where the OBJ files are found
+    :param diff_path: path where the diff files will be saved
+    """
+    c = 0
+    for name, start, end, step in models:     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
+        total_time = 0
+
+        diff = {}
+        for j in range(start, end, step):
+            obj_files_path = obj_path + name
+            diff_files_path = diff_path + name + "/step_" + str(step)
+
+            if not os.path.exists(diff_files_path):
+                os.makedirs(diff_files_path)
+
+            if j+step > end:
+                diff_mod_verts, diff_new_verts, verts_no,\
+                diff_mod_normals, diff_new_normals, normals_no,\
+                diff_mod_faces, diff_new_faces, faces_no, set_diff_time = compute_diff_set(obj_files_path, j, end)
+            else:
+                diff_mod_verts, diff_new_verts, verts_no,\
+                diff_mod_normals, diff_new_normals, normals_no,\
+                diff_mod_faces, diff_new_faces, faces_no, set_diff_time = compute_diff_set(obj_files_path, j, j + step)
+
+            diff["valid"] = True
+            diff["mod_verts"] = diff_mod_verts
+            diff["new_verts"] = diff_new_verts
+            diff["verts_no"] = verts_no
+            diff["mod_normals"] = diff_mod_normals
+            diff["new_normals"] = diff_new_normals
+            diff["normals_no"] = normals_no
+            diff["mod_faces"] = diff_mod_faces
+            diff["new_faces"] = diff_new_faces
+            diff["faces_no"] = faces_no
+
+            total_time += set_diff_time
+
+            diff_lines = len(diff_mod_verts) + len(diff_new_verts) + \
+                         len(diff_mod_normals) + len(diff_new_normals) + \
+                         len(diff_mod_faces) + len(diff_new_faces)
+
+            fh = open(diff_files_path + "/diff_" + str(c), "wb+")
+            if diff_lines > 0:
+                pickle.dump(diff, fh)
+            else:
+                pickle.dump({"valid": False}, fh)
+            fh.close()
+            c += 1
+            print("SAVED DIFF " + str(j) + " for " + name)
+            print("=====================================================")
+
 
 if __name__ == "__main__":
+    models = [["task01", 0, 500, 10]]  # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
+    obj_files_path = "../obj2_files/"
+    diff_files_path = "../diff_new/"
+    start = 0
+    generate_diff(models, obj_files_path, diff_files_path)
 
-    for name, end in [["gargoyle2", 300], ["task01", 300], ["monster", 300]]:     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
+'''
+if __name__ == "__main__":
+    for name, end in [["task06", 987]]:     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
         obj_files_path = "../obj2_files/" + name
         diff_files_path = "../diff_new/" + name
         start = 0
@@ -350,46 +413,4 @@ if __name__ == "__main__":
             fh.close()
             print("SAVED DIFF " + str(j) + " for " + name)
             print("=====================================================")
-
-'''
-if __name__ == "__main__":
-    for name, end in [["task06", 100]]: # , ["gargoyle2", 1058], ["monster", 967]]:
-        obj_files_path = "../obj_files/" + name
-        diff_files_path = "../diff/" + name
-
-        ddtotal = 0.0
-        sdtotal = 0.0
-
-        start = 0
-
-        # noinspection PyTypeChecker
-        for j in range(start, end):
-            diff_lines, dumb_diff_time, _ = compute_diff(obj_files_path, j, j+1, True)
-            #diff_set_verts, same_verts, diff_set_faces, same_faces, set_diff_time = compute_diff_set(obj_files_path, j, j+1)
-
-            #print("==============================================")
-            print(str(j) + ") " + name + " Diff lines(dumb): " + str(len(diff_lines)))
-            #print("----------------------------------------------")
-            #print("Diff verts(set): " + str(len(diff_set_verts)))
-            #print("Same verts(set): " + str(len(same_verts)))
-            #print()
-            #print("Diff faces(set): " + str(len(diff_set_faces)))
-            #print("Same faces(set): " + str(len(same_faces)))
-            #print()
-            #print("Diff lines(set): " + str(len(diff_set_verts) + len(diff_set_faces)))
-            #print("==============================================")
-
-            ddtotal += dumb_diff_time
-            #sdtotal += set_diff_time
-
-            fh = open(diff_files_path + "/diff_" + str(j), "wb+")
-            if len(diff_lines) > 0:
-                pickle.dump(diff_lines, fh)
-            else:
-                pickle.dump(["nodiff"], fh)
-            fh.close()
-
-        print("- TOTAL TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal, sdtotal))
-        print("- MEAN TIMES - \t dumbdiff: %f \tsetdiff: %f" % (ddtotal/(end - 1), sdtotal/(end - 1)))
-
 '''

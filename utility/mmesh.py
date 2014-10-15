@@ -594,19 +594,6 @@ class mMesh:
             temp = numpy.zeros((verts_no  - len(self.vertices), 3), self.vertices.dtype)
             self.vertices = numpy.concatenate((self.vertices, temp), axis=0)
 
-        #for v_m in self.mod_vertices:
-        #    self.vertices[int(v_m[1])] = self.vertices[int(v_m[0])]
-        '''
-        temp_v = {}
-        for v_m in self.mod_vertices:
-            if v_m[2] == "t":
-                temp_v[int(v_m[1])] = self.vertices[int(v_m[0])][:]
-            else:
-                temp_v[int(v_m[0])] = self.vertices[int(v_m[1])][:]
-        for idv in temp_v:
-            self.vertices[idv] = temp_v[idv]
-        '''
-
         for v_m in self.mod_vertices:
             if v_m[2] == "t":
                 self.vertices[int(v_m[1])] = v_m[3]
@@ -622,58 +609,6 @@ class mMesh:
 
         if normals_no >= len(self.normals):
             self.normals = self.normals  + [None, ] * (normals_no + 1 - len(self.normals))
-
-        '''
-        temp_n = {}
-        to_check = self.mod_normals.copy()
-        keep = True
-        while keep:
-            keep = False
-            ntc = []
-            for n_m in to_check:
-                if len(n_m) == 3:
-                    if n_m[2] == "t":
-                        nn = self.normals[int(n_m[0])]
-                        if nn:
-                            temp_n[int(n_m[1])] = nn[:]
-                            n_m.append(True)
-                        else:
-                            n_m.append(False)
-                            ntc.append(n_m)
-                            keep = True
-                    else:
-                        nn = self.normals[int(n_m[1])]
-                        if nn:
-                            temp_n[int(n_m[0])] = nn[:]
-                            n_m.append(True)
-                        else:
-                            n_m.append(False)
-                            ntc.append(n_m)
-                            keep = True
-                elif len(n_m) == 4 and n_m[3] == False:
-                    if n_m[2] == "t":
-                        if int(n_m[0]) in temp_n:
-                            nn = temp_n[int(n_m[0])]
-                            temp_n[int(n_m[1])] = nn[:]
-                            n_m[3] = True
-                        else:
-                            n_m[3] = False
-                            ntc.append(n_m)
-                            keep = True
-                    else:
-                        if int(n_m[1]) in temp_n:
-                            nn = temp_n[int(n_m[1])]
-                            temp_n[int(n_m[0])] = nn[:]
-                            n_m[3] = True
-                        else:
-                            n_m[3] = False
-                            ntc.append(n_m)
-                            keep = True
-            to_check = ntc.copy()
-
-        for idn in temp_n:
-            self.normals[idn] = temp_n[idn][:]
-        '''
 
         for n_m in self.mod_normals:
             if n_m[2] == "t":
@@ -692,19 +627,6 @@ class mMesh:
         if faces_no > len(self.faces):
             self.faces = self.faces  + [None, ] * (faces_no  - len(self.faces))
             self.faces_n = self.faces_n  + [None, ] * (faces_no - len(self.faces_n))
-
-        #for f_m in self.mod_faces:
-        #    self.faces[int(f_m[1])] = self.faces[int(f_m[0])]
-        '''
-        temp_f = {}
-        for f_m in self.mod_faces:
-            if f_m[2] == "t":
-                temp_f[int(f_m[1])] = self.faces[int(f_m[0])][:]
-            else:
-                temp_f[int(f_m[0])] = self.faces[int(f_m[1])][:]
-        for idf in temp_f:
-            self.faces[idf] = temp_f[idf]
-        '''
 
         for f_m in self.mod_faces:
             if f_m[2] == "t":
@@ -741,6 +663,7 @@ class mMesh:
         #     PRINTING NULLS
         # ==========================
 
+        '''
         for idx, v in enumerate(self.vertices):
             if v == None:
                 print("v " + str(idx))
@@ -750,7 +673,7 @@ class mMesh:
         for idx, f in enumerate(self.faces):
             if f == None:
                 print("f " + str(idx))
-
+        '''
 
         self.quadCount = 0
         self.trisCount = 0
@@ -783,46 +706,61 @@ class mMesh:
         ntIndex = 0
         nqIndex = 0
 
+        start_l = time.time()
         vCol = [0, ] * len(self.vertices)
         for idx in self.new_vertices:
             vCol[int(idx[0])] = 2
+        idx_f = 0
+        print("\tinitialize vcol %f" % (time.time() - start_l))
+        start_l = time.time()
 
-        for idx_f, f in enumerate(self.faces):
-            for idx_v, v in enumerate(f):
+        #for idx_f, f in enumerate(self.faces):
+        #    for idx_v, v in enumerate(f):
+        for f in self.faces:
+            idx_v = 0
+            for v in f:
                 vIndex += 1
                 v = int(v)
                 if len(f) == 3:
-                    self.seqTrisVertices[tIndex, 0] = self.vertices[v-1][0]
-                    self.seqTrisVertices[tIndex, 1] = self.vertices[v-1][1]
-                    self.seqTrisVertices[tIndex, 2] = self.vertices[v-1][2]
+                    v_u = self.vertices[v-1]
+                    self.seqTrisVertices[tIndex, 0] = v_u[0]
+                    self.seqTrisVertices[tIndex, 1] = v_u[1]
+                    self.seqTrisVertices[tIndex, 2] = v_u[2]
 
                     c = vCol[v-1]
-                    self.trisColors[tIndex, 0] = color_map[c][0]
-                    self.trisColors[tIndex, 1] = color_map[c][1]
-                    self.trisColors[tIndex, 2] = color_map[c][2]
+                    c_u = color_map[c]
+                    self.trisColors[tIndex, 0] = c_u[0]
+                    self.trisColors[tIndex, 1] = c_u[1]
+                    self.trisColors[tIndex, 2] = c_u[2]
+
+                    fn = self.faces_n[idx_f][idx_v]-1
+                    n_u = self.normals[fn]
+                    self.trisNormals[tIndex, 0] = n_u[0]
+                    self.trisNormals[tIndex, 1] = n_u[1]
+                    self.trisNormals[tIndex, 2] = n_u[2]
                     tIndex += 1
 
-                    self.trisNormals[ntIndex, 0] = self.normals[self.faces_n[idx_f][idx_v]-1][0]
-                    self.trisNormals[ntIndex, 1] = self.normals[self.faces_n[idx_f][idx_v]-1][1]
-                    self.trisNormals[ntIndex, 2] = self.normals[self.faces_n[idx_f][idx_v]-1][2]
-                    ntIndex += 1
-
                 elif len(f) == 4:
-                    self.seqQuadVertices[qIndex, 0] = self.vertices[v-1][0]
-                    self.seqQuadVertices[qIndex, 1] = self.vertices[v-1][1]
-                    self.seqQuadVertices[qIndex, 2] = self.vertices[v-1][2]
+                    v_u = self.vertices[v-1]
+                    self.seqQuadVertices[qIndex, 0] = v_u[0]
+                    self.seqQuadVertices[qIndex, 1] = v_u[1]
+                    self.seqQuadVertices[qIndex, 2] = v_u[2]
 
                     c = vCol[v-1]
-                    self.quadColors[qIndex, 0] = color_map[c][0]
-                    self.quadColors[qIndex, 1] = color_map[c][1]
-                    self.quadColors[qIndex, 2] = color_map[c][2]
+                    c_u = color_map[c]
+                    self.quadColors[qIndex, 0] = c_u[0]
+                    self.quadColors[qIndex, 1] = c_u[1]
+                    self.quadColors[qIndex, 2] = c_u[2]
+
+                    fn = self.faces_n[idx_f][idx_v]-1
+                    n_u = self.normals[fn]
+                    self.quadNormals[qIndex, 0] = n_u[0]
+                    self.quadNormals[qIndex, 1] = n_u[1]
+                    self.quadNormals[qIndex, 2] = n_u[2]
                     qIndex += 1
-
-                    self.quadNormals[nqIndex, 0] = self.normals[self.faces_n[idx_f][idx_v]-1][0]
-                    self.quadNormals[nqIndex, 1] = self.normals[self.faces_n[idx_f][idx_v]-1][1]
-                    self.quadNormals[nqIndex, 2] = self.normals[self.faces_n[idx_f][idx_v]-1][2]
-                    nqIndex += 1
-
+                idx_v += 1
+            idx_f += 1
+        print("\tupdate seq vectoris%f" % (time.time() - start_l))
         print("Total reset took %f" % (time.time() - start))
 
         start = time.time()
