@@ -10,9 +10,9 @@ from collections import defaultdict
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
 
-color_map = [[0.6, 0.7, 0.7],
+color_map = [[0.5, 0.5, 0.5],
              [0.8, 0.7, 0.7],
-             [0.6, 0.8, 0.6]]
+             [0.55, 0.8, 0.55]]
 
 class mMesh:
     def __init__(self, vbo):
@@ -559,13 +559,13 @@ class mMesh:
 
     def apply_diff_set(self, current_step, diff_path, reverse=False):
         print()
-        print("Applying diff set " + str(current_step))
+        #print("Applying diff set " + str(current_step))
         start = time.time()
         self.mod_vertices, self.new_vertices, verts_no, \
         self.mod_normals, self.new_normals, normals_no, \
         self.mod_faces, self.new_faces, faces_no = self.read_diff_set(diff_path + "diff_" + str(current_step))
 
-        print("Read diff took %f" % (time.time() - start))
+        #print("Read diff took %f" % (time.time() - start))
 
         if len(self.mod_vertices) + len(self.new_vertices) +\
             len(self.mod_normals) + len(self.new_normals) +\
@@ -593,6 +593,8 @@ class mMesh:
             #self.vertices = self.vertices  + [None, ] * (verts_no - len(self.vertices))
             temp = numpy.zeros((verts_no  - len(self.vertices), 3), self.vertices.dtype)
             self.vertices = numpy.concatenate((self.vertices, temp), axis=0)
+        #elif verts_no < len(self.vertices):
+        #    self.vertices = self.vertices[:verts_no + 1]
 
         for v_m in self.mod_vertices:
             if v_m[2] == "t":
@@ -609,6 +611,8 @@ class mMesh:
 
         if normals_no >= len(self.normals):
             self.normals = self.normals  + [None, ] * (normals_no + 1 - len(self.normals))
+        elif normals_no < len(self.normals):
+            self.normals = self.normals[:normals_no + 1]
 
         for n_m in self.mod_normals:
             if n_m[2] == "t":
@@ -627,6 +631,8 @@ class mMesh:
         if faces_no > len(self.faces):
             self.faces = self.faces  + [None, ] * (faces_no  - len(self.faces))
             self.faces_n = self.faces_n  + [None, ] * (faces_no - len(self.faces_n))
+        elif faces_no < len(self.faces):
+            self.faces = self.faces[:faces_no]
 
         for f_m in self.mod_faces:
             if f_m[2] == "t":
@@ -663,7 +669,6 @@ class mMesh:
         #     PRINTING NULLS
         # ==========================
 
-        '''
         for idx, v in enumerate(self.vertices):
             if v == None:
                 print("v " + str(idx))
@@ -673,7 +678,6 @@ class mMesh:
         for idx, f in enumerate(self.faces):
             if f == None:
                 print("f " + str(idx))
-        '''
 
         self.quadCount = 0
         self.trisCount = 0
@@ -683,39 +687,32 @@ class mMesh:
             else:
                 self.quadCount += 1
 
-        print("Update verts and faces took %f" % (time.time() - start))
+        #print("Update verts and faces took %f" % (time.time() - start))
 
         self.vertexCount = len(self.vertices)
         self.texCoordCount = len(self.vertices)
-
         self.normalQuadCount = self.quadCount * 4
         self.normalTrisCount = self.trisCount * 3
 
         self.quadNormals = numpy.zeros((self.quadCount * 4, 3), 'f')
         self.trisNormals = numpy.zeros((self.trisCount * 3, 3), 'f')
-
         self.seqQuadVertices = numpy.zeros((self.quadCount * 4, 3), 'f')
         self.quadColors = numpy.zeros((self.quadCount * 4, 3), 'f')
-
         self.seqTrisVertices = numpy.zeros((self.trisCount * 3, 3), 'f')
         self.trisColors = numpy.zeros((self.trisCount * 3, 3), 'f')
 
         qIndex = 0
         tIndex = 0
         vIndex = 0
-        ntIndex = 0
-        nqIndex = 0
 
         start_l = time.time()
         vCol = [0, ] * len(self.vertices)
         for idx in self.new_vertices:
             vCol[int(idx[0])] = 2
         idx_f = 0
-        print("\tinitialize vcol %f" % (time.time() - start_l))
+        #print("\tinitialize vcol %f" % (time.time() - start_l))
         start_l = time.time()
 
-        #for idx_f, f in enumerate(self.faces):
-        #    for idx_v, v in enumerate(f):
         for f in self.faces:
             idx_v = 0
             for v in f:
@@ -760,12 +757,12 @@ class mMesh:
                     qIndex += 1
                 idx_v += 1
             idx_f += 1
-        print("\tupdate seq vectoris%f" % (time.time() - start_l))
-        print("Total reset took %f" % (time.time() - start))
+        #print("\tupdate seq vectoris%f" % (time.time() - start_l))
+        #print("Total reset took %f" % (time.time() - start))
 
         start = time.time()
         self.vertices = numpy.asarray(self.vertices, dtype=numpy.float32)
-        print("Verts to numpy took %f" % (time.time() - start))
+        #print("Verts to numpy took %f" % (time.time() - start))
 
         return True
 

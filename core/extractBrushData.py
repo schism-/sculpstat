@@ -1,5 +1,6 @@
 __author__ = 'christian'
 
+import os
 import bpy
 import json
 import pickle
@@ -9,11 +10,12 @@ from utility import common
 
 class BrushData(object):
 
-    def __init__(self, model_name):
+    def __init__(self, model_name, max_step=0):
         self.model_name = model_name
         self.step_path = "../steps/" + self.model_name + "/steps.json"
+        self.root_blend_files = "/Volumes/PART FAT/3ddata/"
         self.paths = []
-
+        self.max_step = max_step
         f = open(self.step_path, 'r')
         self.steps = json.load(f)
 
@@ -30,7 +32,7 @@ class BrushData(object):
                 print('modifier not found')
 
     def load_brushes_size(self):
-        blend_files = common.get_files_from_directory("../blend_files/" + self.model_name + "/", ['blend'], "snap")
+        blend_files = common.get_files_from_directory(self.root_blend_files + self.model_name + "/", ['blend'], "snap")
         brush_sizes = []
         for file in blend_files:
             bpy.ops.wm.open_mainfile(filepath=file[0], filter_blender=True,
@@ -76,6 +78,80 @@ class BrushData(object):
                     self.paths.append(self.paths[-1])
                 else:
                     self.paths.append([[0.0, 0.0, 0.0]])
+
+
+    def load_brush_stroke(self, step_no):
+        stroke_op = []
+        paths = []
+        try:
+            step_ops = self.steps[str(step_no)]
+            for op in step_ops:
+                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                    stroke_op.append(op)
+
+            if len(stroke_op) > 0:
+                for s_op in stroke_op:
+                    p = self.getPath(s_op)
+                    if len(p) > 0:
+                        paths.append(p)
+        except KeyError as e:
+            print(e)
+
+        return paths
+
+    def load_brush_mode(self, step_no):
+
+        # 0 = normal
+        # 1 = invert
+        # 2 = smooth
+
+        mapping = {
+            'NORMAL': 0,
+            'INVERT': 1,
+            'SMOOTH': 2
+        }
+
+        stroke_op = []
+        modes = None
+        try:
+            step_ops = self.steps[str(step_no)]
+            for op in step_ops:
+                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                    stroke_op.append(op)
+        except KeyError as e:
+            print(e)
+
+        try:
+            if len(stroke_op) > 0:
+                for s_op in stroke_op:
+                    if "mode" in s_op:
+                        modes = mapping[s_op["mode"]]
+        except KeyError as e:
+            print("NEW MODE - " + str([x['mode'] for x in stroke_op]))
+
+        return modes
+
+    def load_brush_size(self, step_no):
+        blend_file = self.root_blend_files + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
+        #if not os.path.isfile(blend_file):
+        #    blend_file = "/Volumes/Part Mac/3ddata/" + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
+        #    if not os.path.isfile(blend_file):
+        #        blend_file = "/Users/christian/Desktop/3ddata/" + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
+
+        brush_sizes = []
+        bpy.ops.wm.open_mainfile(filepath=blend_file, filter_blender=True,
+                                 filemode=8, display_type='FILE_DEFAULTDISPLAY',
+                                 load_ui=False, use_scripts=True)
+
+        try:
+            if bpy.data.scenes["Scene"]:
+                brush_sizes = [bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.size,
+                               bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius]
+        except KeyError:
+            print('brush not found')
+
+        return brush_sizes
+
     @staticmethod
     def getPath(stroke_op):
         path = numpy.zeros((len(stroke_op["stroke"]), 3), 'f')
@@ -98,6 +174,28 @@ class BrushData(object):
         for k in range(len(path) - 1):
             l += numpy.linalg.norm(path[k+1] - path[k])
         return l
+
+    def get_path_aa_bbox(self, points):
+        aabb_points = []
+        min_ext = numpy.array([1000.0, 1000.0, 1000.0])
+        max_ext = numpy.array([-1000.0, -1000.0, -1000.0])
+
+        for p in points:
+            min_ext = numpy.minimum(min_ext, numpy.array(p))
+            max_ext = numpy.maximum(max_ext, numpy.array(p))
+
+        aabb_points.append([min_ext[0], min_ext[1], min_ext[2]])
+        aabb_points.append([max_ext[0], min_ext[1], min_ext[2]])
+        aabb_points.append([max_ext[0], max_ext[1], min_ext[2]])
+        aabb_points.append([min_ext[0], max_ext[1], min_ext[2]])
+        aabb_points.append([min_ext[0], min_ext[1], max_ext[2]])
+        aabb_points.append([max_ext[0], min_ext[1], max_ext[2]])
+        aabb_points.append([max_ext[0], max_ext[1], max_ext[2]])
+        aabb_points.append([min_ext[0], max_ext[1], max_ext[2]])
+
+        vol = (max_ext[0] - min_ext[0]) * (max_ext[1] - min_ext[1]) * (max_ext[2] - min_ext[2])
+
+        return [aabb_points, vol]
 
     def get_path_bbox(self, points):
         mu = numpy.asarray([0.0, 0.0, 0.0])
@@ -127,7 +225,7 @@ class BrushData(object):
         vol = BrushData.obb_volume(m_ext)
         obb_points = BrushData.get_bounding_box(m_rot, m_ext, m_pos)
 
-        return obb_points, vol
+        return [obb_points, vol]
 
     def build_from_covariance_matrix(self, cov_m, points):
         eigval, eigvec = numpy.linalg.eig(cov_m)
@@ -185,23 +283,114 @@ class BrushData(object):
            return v
         return v/norm
 
-if __name__ == "__main__":
-    bd = BrushData("monster")
 
-    bd.load_brush_strokes(967)
-    bd.load_brushes_size()
+    def converto_to_str(self):
+        in_file = open("../steps/" + self.model_name + "/b_data", "rb")
+        b_data = pickle.load(in_file)
 
-    brush_data = []
-    for path in bd.paths:
-        print(path[0])
-        if len(path) > 1:
-            l = bd.get_path_length(path)
-            bbox_p, vol = bd.get_path_bbox(path)
-            #print("len: %f" % l)
-            #print("BBOX points: %s, vol: %f " % (bbox_p, vol))
-            brush_data.append([bbox_p, l, vol])
+        in_file2 = open("../steps/" + self.model_name + "/b_size", "rb")
+        b_size = pickle.load(in_file2)
+
+        out_file = open("../steps/" + self.model_name + "/b_data_nopickle", "w+")
+        for bbox_p, l, vol in b_data:
+            flat = [" ".join([str(el[0]), str(el[1]), str(el[2])]) for el in bbox_p]
+            out_file.write("%s %s %s\n" % (l, vol, ' '.join(flat)))
+        out_file.close()
+
+        out_file2 = open("../steps/" + self.model_name + "/b_size_nopickle", "w+")
+        for size, unp_size in b_size:
+            out_file2.write("%s %s\n" % (size, unp_size))
+        out_file2.close()
+
+    def get_path_centroid(self, points):
+        temp = [0,0,0]
+        for p in points:
+            temp[0] += p[0]
+            temp[1] += p[1]
+            temp[2] += p[2]
+        temp[0] /= len(points)
+        temp[1] /= len(points)
+        temp[2] /= len(points)
+        return temp
+
+    def extract_data(self):
+        ret_data = {}
+        for k in range(self.max_step + 1):
+            ret_data[k] = self.extract_data_single(k)
+        return ret_data
+
+
+    def extract_data_single(self, step_no):
+        '''
+        Extracts all brush strokes data for a specific step
+        :param step_no: step number
+        :return: dictionary with all data
+        '''
+
+        return_data = {}
+
+        '''
+        brush size
+        brush mode
+        path length
+        path OBB
+        path AABB
+        distanza tra i brush path
+        '''
+
+        b_size = self.load_brush_size(step_no)
+        b_mode = self.load_brush_mode(step_no)
+        b_paths = self.load_brush_stroke(step_no)
+
+        b_lenght = []
+        b_obb_boxes = []
+        b_aabb_boxes = []
+        b_paths_centroid = []
+        for path in b_paths:
+            b_lenght.append(self.get_path_length(path))
+            b_obb_boxes.append(self.get_path_bbox(path))
+            b_aabb_boxes.append(self.get_path_aa_bbox(path))
+            b_paths_centroid.append(self.get_path_centroid(path))
+
+
+        if len(b_paths) == 0:
+            return_data["valid"] = False
         else:
-            brush_data.append([[], 0, 0])
-    bd_file = open("../steps/" + bd.model_name + "/b_data", "wb+")
-    pickle.dump(brush_data, bd_file)
-    bd_file.close()
+            return_data["valid"] = True
+            return_data["size"] = b_size
+            return_data["mode"] = b_mode
+            return_data["brush_number"] = len(b_paths)
+
+            list_b_paths = []
+            for path in b_paths:
+                list_b_paths.append([[float(p[0]), float(p[1]), float(p[2])] for p in path])
+            return_data["paths"] = list_b_paths
+
+            list_b_obb_boxes = []
+            for bb, volbb in b_obb_boxes:
+                list_b_obb_boxes.append([[[float(p[0]), float(p[1]), float(p[2])] for p in bb], volbb])
+            return_data["obboxes"] = list_b_obb_boxes
+
+            list_b_aabb_boxes = []
+            for aabb, volaabb in b_aabb_boxes:
+                list_b_aabb_boxes.append([[[float(p[0]), float(p[1]), float(p[2])] for p in aabb], volaabb])
+            return_data["aabboxes"] = list_b_aabb_boxes
+
+            return_data["centroids"] = b_paths_centroid
+
+            return_data["lenghts"] = b_lenght
+
+        return return_data
+
+
+if __name__ == "__main__":
+
+    models = [["engineer", 987], ["fighter", 1608], ["gorilla", 2719], ["sage", 2136]]
+
+    for model_name, max_step in models:
+        bd = BrushData(model_name, max_step)
+        data = bd.extract_data()
+
+        out = open("../steps/" + bd.model_name + "/brush_data.json", "w")
+        json.dump(data, out)
+        out.close()

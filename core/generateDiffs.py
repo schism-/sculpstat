@@ -177,16 +177,16 @@ def compute_diff_set(file_path, file1, file2):
     for idx, f2_f in enumerate(f2_f_lines):
         f2_f_lines_exp.add(DiffEntry(idx, [x.strip() for x in f2_f.split(' ')[1:]], 'to'))
 
-    verts_no = len(f1_v_lines)
+    verts_no = min(len(f1_v_lines), len(f2_v_lines))
     diff_mod_verts = []
     diff_new_verts = []
 
-    normals_no = len(f1_n_lines)
+    normals_no = min(len(f1_n_lines), len(f2_n_lines))
     diff_mod_normals = []
     diff_new_normals = []
 
 
-    faces_no = len(f1_f_lines)
+    faces_no = min(len(f1_f_lines), len(f2_f_lines))
     diff_mod_faces = []
     diff_new_faces = []
 
@@ -301,6 +301,10 @@ def compute_diff_set(file_path, file1, file2):
     print("Mod faces %s" % len(diff_mod_faces))
     print("New faces %s" % len(diff_new_faces))
 
+    print("verts no %s" % verts_no)
+    print("norms no %s" % normals_no)
+    print("faces no %s" % faces_no)
+
 
     return [diff_mod_verts, diff_new_verts, verts_no,
             diff_mod_normals, diff_new_normals, normals_no,
@@ -310,18 +314,26 @@ def reallocate_array(old_array):
     temp = np.zeros(old_array.shape, old_array.dtype)
     return np.concatenate((old_array, temp), axis=0)
 
-def generate_diff(models, obj_path, diff_path):
+def generate_diff(models, obj_path, diff_path, serialize=False):
     """
     Generates diff between OBJ files
     :param models: in the form of [model_name, start, end, step]
     :param obj_path: path where the OBJ files are found
     :param diff_path: path where the diff files will be saved
     """
-    c = 0
-    for name, start, end, step in models:     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
-        total_time = 0
 
+    for name, start, end, step in models:
+        total_time = 0
+        c = 0
         diff = {}
+
+        if serialize:
+            if not os.path.exists(diff_path + name + "/step_" + str(step)):
+                os.makedirs(diff_path + name + "/step_" + str(step))
+            fs = open(diff_path + name + "/step_" + str(step) + "/serialized.txt", "w")
+            fs.write("true")
+            fs.close()
+
         for j in range(start, end, step):
             obj_files_path = obj_path + name
             diff_files_path = diff_path + name + "/step_" + str(step)
@@ -355,23 +367,80 @@ def generate_diff(models, obj_path, diff_path):
                          len(diff_mod_normals) + len(diff_new_normals) + \
                          len(diff_mod_faces) + len(diff_new_faces)
 
-            fh = open(diff_files_path + "/diff_" + str(c), "wb+")
-            if diff_lines > 0:
-                pickle.dump(diff, fh)
+            if not serialize:
+                fh = open(diff_files_path + "/diff_" + str(j), "wb+")
+                if diff_lines > 0:
+                    pickle.dump(diff, fh)
+                else:
+                    pickle.dump({"valid": False}, fh)
+                fh.close()
             else:
-                pickle.dump({"valid": False}, fh)
-            fh.close()
+                if diff_lines > 0:
+                    if not os.path.exists(diff_files_path + "/diff_" + str(j) + "/"):
+                        os.makedirs(diff_files_path + "/diff_" + str(j) + "/")
+
+                    fh = open(diff_files_path + "/diff_" + str(j) + "/diff_head", "wb+")
+                    diff_head = {}
+                    diff_head["valid"] = True
+                    diff_head["mod_verts"] = len(diff_mod_verts)
+                    diff_head["new_verts"] = len(diff_new_verts)
+                    diff_head["verts_no"] = verts_no
+                    diff_head["mod_normals"] = len(diff_mod_normals)
+                    diff_head["new_normals"] = len(diff_new_normals)
+                    diff_head["normals_no"] = normals_no
+                    diff_head["mod_faces"] = len(diff_mod_faces)
+                    diff_head["new_faces"] = len(diff_new_faces)
+                    diff_head["faces_no"] = faces_no
+                    pickle.dump(diff_head, fh)
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/mod_verts", "wb+")
+                    pickle.dump(diff_mod_verts, fh_d)
+                    fh_d.close()
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/new_verts", "wb+")
+                    pickle.dump(diff_new_verts, fh_d)
+                    fh_d.close()
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/mod_normals", "wb+")
+                    pickle.dump(diff_mod_normals, fh_d)
+                    fh_d.close()
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/new_normals", "wb+")
+                    pickle.dump(diff_new_normals, fh_d)
+                    fh_d.close()
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/mod_faces", "wb+")
+                    pickle.dump(diff_mod_faces, fh_d)
+                    fh_d.close()
+
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/new_faces", "wb+")
+                    pickle.dump(diff_new_faces, fh_d)
+                    fh_d.close()
+                else:
+                    if not os.path.exists(diff_files_path + "/diff_" + str(j) + "/"):
+                        os.makedirs(diff_files_path + "/diff_" + str(j) + "/")
+                    fh_d = open(diff_files_path + "/diff_" + str(j) + "/diff_head", "wb+")
+                    pickle.dump({"valid":False}, fh_d)
+                    fh_d.close()
+
             c += 1
             print("SAVED DIFF " + str(j) + " for " + name)
             print("=====================================================")
 
 
 if __name__ == "__main__":
-    models = [["task01", 0, 500, 10]]  # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
-    obj_files_path = "../obj2_files/"
-    diff_files_path = "../diff_new/"
+    # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
+    # name, start, end, step  ["fighter", 0, 1609, 1], ["explorer", 1730, 1858, 1],
+    # models = [["sage", 1677, 2136, 1], ["gorilla", 0, 2719, 1], ["elf", 0, 4307, 1], ["elder", 2430, 3119, 1]]
+
+    models = [["alien", 1024, 2216, 1], ["man", 0, 1580, 1]]
+
+    # alien to 1752
+
+    obj_files_path = "/Volumes/Part Mac/obj2_files/"
+    diff_files_path = "/Volumes/PART FAT/diff_new/"
     start = 0
-    generate_diff(models, obj_files_path, diff_files_path)
+    generate_diff(models, obj_files_path, diff_files_path, serialize=True)
 
 '''
 if __name__ == "__main__":

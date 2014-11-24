@@ -40,7 +40,7 @@ class Viewer(object):
         self.is_numpy = False
         self.is_steps = steps
         if steps:
-            self.current_step = 0
+            self.current_step = current_step
         else:
             self.current_step = current_step
 
@@ -53,14 +53,20 @@ class Viewer(object):
 
         # File paths
         self.model_name = model_name
-        self.obj_path = "../obj2_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
-        self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+
+        self.obj_root = "/Volumes/Part Mac/obj2_files/"
+        self.blend_root = "/Volumes/PART FAT/3ddata/"
+        self.diff_root = "/Volumes/PART FAT/diff_new/"
+        self.steps_root = ""
+
+        self.obj_path = self.obj_root + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+        self.blend_path = self.blend_root + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
         self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
         if steps:
-            self.diff_path = "../diff_new/" + self.model_name + "/step_" + str(steps) + "/"
+            self.diff_path = self.diff_root + self.model_name + "/step_" + str(steps) + "/"
             self.step_path = "../steps/" + self.model_name + "/steps_clust" + str(steps) + ".json"
         else:
-            self.diff_path = "../diff_new/" + self.model_name + "/"
+            self.diff_path = self.diff_root + self.model_name + "/"
             self.step_path = "../steps/" + self.model_name + "/steps.json"
 
         bs_file = open("../steps/" + self.model_name + "/b_size", "rb")
@@ -87,10 +93,10 @@ class Viewer(object):
         self.loadFinalCandidate(load_mesh)
         print("Models loaded in %f" %(time.time() - start_lfc))
 
-        #if self.load_brushes:
-        #    start_bs =time.time()
-        #    self.loadBrushStrokes(self.step_path, self.current_step)
-        #    print("Brush loaded in %f" %(time.time() - start_bs))
+        if self.load_brushes:
+            start_bs =time.time()
+            self.loadBrushStrokes(self.step_path, self.current_step if self.is_steps else self.current_step + 1)
+            print("Brush loaded in %f" %(time.time() - start_bs))
 
         print()
 
@@ -171,7 +177,7 @@ class Viewer(object):
 
     def loadBrushStrokes(self, step_path, stepno, window=None):
         try:
-            step_ops = self.steps[str(stepno)]
+            step_ops = self.steps[str(stepno +  1)]
             stroke_ops = []
             for op in step_ops:
                 if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
@@ -273,22 +279,34 @@ class Viewer(object):
         #done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
         done = self.meshes[0].apply_diff_set(self.current_step, self.diff_path, reverse=False)
 
-        print("Applying diff took %f" % (time.time() - start))
+        #print("Applying diff took %f" % (time.time() - start))
         if done:
             start = time.time()
             self.loadModel(self.meshes[0], True)
-            print("Load model took %f" % (time.time() - start))
+            #print("Load model took %f" % (time.time() - start))
             self.brush_paths = []
             start = time.time()
             self.loadBrushStrokes(self.step_path, self.current_step if self.is_steps else self.current_step + 1)
-            print("Load brush took %f" % (time.time() - start))
+            #print("Load brush took %f" % (time.time() - start))
+
+            self.current_step += 1
+
+            self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+            self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+            self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+
         else:
             self.meshes[0].VBOQuadColors = vbo.VBO(self.meshes[0].quadColors)
             self.meshes[0].VBOTrisColors = vbo.VBO(self.meshes[0].trisColors)
-        self.current_step += 1
-        self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
-        self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
-        self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+
+            self.current_step += 1
+
+            self.obj_path = "../obj_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
+            self.blend_path = "../blend_files/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
+            self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
+
+            self.loadNextModel()
+
 
     def loadPrevModel(self):
         print("Loading prev model")
@@ -336,20 +354,76 @@ class Viewer(object):
         glLineWidth(1.0)
         glDepthRange(0.0, 1.0)
 
-        glDepthFunc(GL_GEQUAL)
-        glEnable(GL_CULL_FACE)
-        glCullFace(GL_FRONT)
+
+        '''
+        glDepthFunc(GL_EQUAL)
         glPushMatrix()
-        glColor4f(1.0, 0.0, 0.0, 0.15)
-        for p in [el for idx, el in enumerate(path) if idx % 5 == 0]:
+        glColor4f(0.5, 0.0, 0.0, 0.10)
+        for p in [el for idx, el in enumerate(path) if idx % 10 == 0]:
             glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 30, 30)
             glTranslate(-p[0], -p[1], -p[2])
         glColor4f(0.0, 0.0, 0.0, 1.0)
         glPopMatrix()
         glDepthFunc(GL_LEQUAL)
-        glDisable(GL_CULL_FACE)
 
+
+        '''
+
+        #glDepthFunc(GL_LEQUAL)
+        #glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        #glEnable(GL_CULL_FACE)
+        #glCullFace(GL_FRONT)
+
+        glPushMatrix()
+        glColor4f(0.7, 0.0, 0.0, 0.20)
+        for p in [el for idx, el in enumerate(path) if idx % 10 == 0]:
+            glTranslate(p[0], p[1], p[2])
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 30, 30)
+            glTranslate(-p[0], -p[1], -p[2])
+        glColor4f(0.0, 0.0, 0.0, 1.0)
+        glPopMatrix()
+
+        #glDisable(GL_CULL_FACE)
+        #glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        #glDepthFunc(GL_LEQUAL)
+
+
+
+        '''
+        1. Clear stencil buffer
+        2. Place clip plane where you want to clip your object
+        3. use glDepthTest(GL_FALSE), glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE), glStencilFunc(GL_ALWAYS)
+        4. Set stencil operations to GL_INCR, glCullFace(GL_BACK)
+        5. draw your object
+        6. Set stencil operations to GL_DECR, glCullFace(GL_FRONT)
+        7. draw your object
+
+        glEnable(GL_STENCIL_TEST)
+        glDisable(GL_DEPTH_TEST)
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
+        glStencilFunc(GL_ALWAYS, 0, ~1)
+        glStencilOp(GL_INCR, GL_INCR, GL_INCR)
+        glEnable(GL_CULL_FACE)
+        glCullFace(GL_BACK)
+        glPushMatrix()
+        for p in [el for idx, el in enumerate(path) if idx % (len(path)//5) == 0]:
+            glTranslate(p[0], p[1], p[2])
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
+            glTranslate(-p[0], -p[1], -p[2])
+        glPopMatrix()
+        glStencilOp(GL_DECR, GL_DECR, GL_DECR)
+        glCullFace(GL_FRONT)
+        glPushMatrix()
+        for p in [el for idx, el in enumerate(path) if idx % (len(path)//5) == 0]:
+            glTranslate(p[0], p[1], p[2])
+            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
+            glTranslate(-p[0], -p[1], -p[2])
+        glPopMatrix()
+        glDisable(GL_CULL_FACE)
+        glEnable(GL_DEPTH_TEST)
+        glDisable(GL_STENCIL_TEST)
+        '''
 
     def drawBBoxes(self, m):
         drawBBox(m.bbox)
@@ -361,7 +435,7 @@ class Viewer(object):
         m.VBOColors = vbo.VBO(m.colors)
 
 if __name__ == "__main__":
-    v = Viewer("task01", 230)
+    v = Viewer("task02", 200, 1)
     if True:
         v.mainLoop()
     else:

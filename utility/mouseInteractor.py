@@ -1,6 +1,7 @@
 __author__ = 'christian'
 
 import threading
+import numpy
 from OpenGL.GLUT import *
 from utility.intmatrix import *
 
@@ -56,7 +57,16 @@ class MouseInteractor(object):
             self.zoomSlider = False
     
         self.oldMousePos[0], self.oldMousePos[1] = x, y
-    
+        '''
+        self.rotationMatrix.setCurrentMatrix(numpy.array([[ 0.9136188 , -0.02043674,  0.40605885,  0.        ],
+                                                           [-0.03868171,  0.98983645,  0.13685055,  0.        ],
+                                                           [-0.40472841, -0.14073625,  0.90354288,  0.        ],
+                                                           [ 0.        ,  0.        ,  0.        ,  1.        ]], dtype=numpy.float32))
+        self.translationMatrix.setCurrentMatrix(numpy.array([[ 1.,  0.,  0.,  0.],
+                                                               [ 0.,  1.,  0.,  0.],
+                                                               [ 0.,  0.,  1.,  0.],
+                                                               [ 0.,  0.,  0.,  1.]], dtype=numpy.float32))
+        '''
         if (not self.checkGUI(x, y, True)[0]):
             glutPostRedisplay( )
 
@@ -72,6 +82,8 @@ class MouseInteractor(object):
             self.rotationMatrix.addRotation(rY, 0, 1, 0)
             rX = deltaY * self.scalingFactorRotation
             self.rotationMatrix.addRotation(rX, 1, 0, 0)
+            print("self.rotationMatrix = " + repr(self.rotationMatrix.getCurrentMatrix()))
+            print("self.translationMatrix = " + repr(self.translationMatrix.getCurrentMatrix()))
         elif self.mouseButtonPressed == GLUT_LEFT_BUTTON and self.zooming:
             if (not self.checkGUI(x, y, True)[0]):
                 tZ = deltaY * self.scalingFactorTranslation

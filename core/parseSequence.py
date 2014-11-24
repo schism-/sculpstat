@@ -190,24 +190,26 @@ def cluster_data(filtered_data, steps):
 
 
 if __name__ == "__main__":
+    models = ["elder", "elf", "engineer", "explorer", "fighter", "gorilla", "sage"]
 
-    model_name = "task01"
-    steps_files_path = "../steps/" + model_name + "/steps.txt"
-    steps = 10
+    for model_name in models:
+        steps_files_path = "../steps/" + model_name + "/steps.txt"
+        steps = 1
 
-    start = time.time()
-    final_data = parse_file(steps_files_path)
-    end = time.time()
-    print("Took %f seconds" % (end - start))
+        start = time.time()
+        final_data = parse_file(steps_files_path)
+        end = time.time()
+        print("Took %f seconds" % (end - start))
 
-    filtered_data = filter_data(final_data)
-    clustered_data = cluster_data(filtered_data, steps)
+        filtered_data = filter_data(final_data)
+        # clustered_data = cluster_data(filtered_data, steps)
 
-    for step in clustered_data:
-        print(step)
-        for op in clustered_data[step]:
-            print(str(op)[:100])
+        #for step in clustered_data:
+        #    print(step)
+        #    for op in clustered_data[step]:
+        #        print(str(op)[:100])
 
-    out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
-    json.dump(clustered_data, out, indent=4, separators=(',', ': '))
-    out.close()
+        # out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
+        out = open("../steps/" + model_name + "/steps.json", "w")
+        json.dump(filtered_data, out)
+        out.close()

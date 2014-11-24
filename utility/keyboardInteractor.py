@@ -39,4 +39,4 @@ class KeyboardInteractor(object):
     def playback(value=1):
         global v
         v.loadNextModel()
-        glutTimerFunc(100, KeyboardInteractor.playback, value+1)
+        glutTimerFunc(100, KeyboardInteractor.playback, value + 1)

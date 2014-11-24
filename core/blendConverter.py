@@ -50,6 +50,16 @@ class BlendConverter(object):
 
 if __name__ == "__main__":
     names = [["gargoyle2", "Cube"], ["monster", "Cube"]] # ["task02", "Cube"], ["task06", "Basemesh_FullbodyMale"],
+    names = [["task02-alien", "Cube"]]
+
+    names = [["elder", "Plane"], ["elf", "Cube"], ["explorer", "Cube"], ["gorilla", "Cube"], ["sage", "Bust"]]
+
     for model_name, basemesh in names:
-        bc = BlendConverter("../blend_files/", "../obj2_files/", model_name, 0, 1000000, basemesh)
+        #blend_dir = "../blend_files/"
+        #obj_dir = "../obj2_files/"
+        blend_dir = "/Volumes/PART FAT/3ddata/"
+        obj_dir = "/Volumes/Part Mac/obj2_files/"
+
+        # arrivato a snap001607
+        bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 1000000, basemesh)
         bc.convert_to_obj()
