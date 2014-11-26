@@ -13,6 +13,7 @@ class DiffEntry(object):
         self.other_key = None
         self.set_name = set_name
 
+
     def __eq__(self, other):
         if self.data == other.data:
             self.other_key = other.key
@@ -24,14 +25,18 @@ class DiffEntry(object):
     def __hash__(self):
         return hash(tuple(self.data))
 
+
     def __str__(self):
         return "%s Key: %s --- Data: %s --- Key other: %s" % (self.set_name, self.key, self.data, self.other_key)
+
 
     def __repr__(self):
         return 'DiffEntry(key=%s, data=%s, key_from=%s, set_name="%s")' % (self.key, self.data, self.other_key, self.set_name)
 
+
     def reset_other_key(self):
         self.other_key = None
+
 
     @staticmethod
     def create_set_from_obj_line(data_list, label):
@@ -39,95 +44,6 @@ class DiffEntry(object):
         for idx, el in enumerate(data_list):
             diff_entry_set.add(DiffEntry(idx, [x.strip() for x in el.split(' ')[1:]], label))
         return diff_entry_set
-
-def compute_diff(file_path, file1, file2, withUV= False):
-    start_dumbdiff = time.time()
-    f1 = open(file_path + "/snap" + str(file1).zfill(6) + ".obj", 'r')
-    f2 = open(file_path + "/snap" + str(file2).zfill(6) + ".obj", 'r')
-
-    f1_v_lines = [line.strip() for line in f1 if line.startswith('v ')]
-    f2_v_lines = [line.strip() for line in f2 if line.startswith('v ')]
-    f1.close()
-    f2.close()
-
-    f1 = open(file_path + "/snap" + str(file1).zfill(6) + ".obj", 'r')
-    f2 = open(file_path + "/snap" + str(file2).zfill(6) + ".obj", 'r')
-
-    f1_f_lines = [line.strip() for line in f1 if line.startswith('f ')]
-    f2_f_lines = [line.strip() for line in f2 if line.startswith('f ')]
-
-    f1.close()
-    f2.close()
-
-    diff_lines = []
-    updated_verts = []
-
-    if not withUV:
-        for k in range(min(len(f1_v_lines), len(f2_v_lines))):
-            if not(f1_v_lines[k] == f2_v_lines[k]):
-                diff_lines.append(["vm", k, f1_v_lines[k].split(' ')[1:], f2_v_lines[k].split(' ')[1:]])
-                updated_verts.append(k)
-        if len(f1_v_lines) < len(f2_v_lines):
-            for idx, el in enumerate(f2_v_lines[len(f1_v_lines):]):
-                diff_lines.append(["va", len(f1_v_lines) + 1 + idx, '', el.split(' ')[1:]])
-                updated_verts.append(len(f1_v_lines) + idx)
-        elif len(f2_v_lines) < len(f1_v_lines):
-            for idx, el in enumerate(f1_v_lines[len(f2_v_lines):]):
-                diff_lines.append(["vd", len(f2_v_lines) + 1 + idx, el.split(' ')[1:], ''])
-
-        '''
-        for idx, el in enumerate(f2_f_lines):
-            verts = el.split(' ')[1:]
-            for v in verts:
-                v = int(v)
-                if (v + 1) in updated_verts:
-                    diff_lines.append(["fu", idx, None, None])
-        '''
-
-        for k in range(min(len(f1_f_lines), len(f2_f_lines))):
-            if not(f1_f_lines[k] == f2_f_lines[k]):
-                diff_lines.append(["fm", k, f1_f_lines[k].split(' ')[1:], f2_f_lines[k].split(' ')[1:]])
-        if len(f1_f_lines) < len(f2_f_lines):
-            for idx, el in enumerate(f2_f_lines[len(f1_f_lines):]):
-                diff_lines.append(["fa", len(f1_f_lines) + 1 + idx, '', el.split(' ')[1:]])
-        elif len(f2_f_lines) < len(f1_f_lines):
-            for idx, el in enumerate(f1_f_lines[len(f2_f_lines):]):
-                diff_lines.append(["fd", len(f2_f_lines) + 1 + idx, el.split(' ')[1:], ''])
-    else:
-        for k in range(min(len(f1_v_lines), len(f2_v_lines))):
-            if not(f1_v_lines[k] == f2_v_lines[k]):
-                diff_lines.append(["vm", k, [x.split('/')[0] for x in f1_v_lines[k].split(' ')[1:]],
-                                            [x.split('/')[0] for x in f2_v_lines[k].split(' ')[1:]] ])
-                updated_verts.append(k)
-        if len(f1_v_lines) < len(f2_v_lines):
-            for idx, el in enumerate(f2_v_lines[len(f1_v_lines):]):
-                diff_lines.append(["va", len(f1_v_lines) + 1 + idx, '',
-                                  [x.split('/')[0] for x in el.split(' ')[1:]]])
-                updated_verts.append(len(f1_v_lines) + idx)
-        elif len(f2_v_lines) < len(f1_v_lines):
-            for idx, el in enumerate(f1_v_lines[len(f2_v_lines):]):
-                diff_lines.append(["vd", len(f2_v_lines) + 1 + idx,
-                                   [x.split('/')[0] for x in el.split(' ')[1:]], ''])
-
-        for k in range(min(len(f1_f_lines), len(f2_f_lines))):
-            if not(f1_f_lines[k] == f2_f_lines[k]):
-                diff_lines.append(["fm", k,
-                                   [x.split('/')[0] for x in f1_f_lines[k].split(' ')[1:]],
-                                   [x.split('/')[0] for x in f2_f_lines[k].split(' ')[1:]] ])
-        if len(f1_f_lines) < len(f2_f_lines):
-            for idx, el in enumerate(f2_f_lines[len(f1_f_lines):]):
-                diff_lines.append(["fa", len(f1_f_lines) + 1 + idx, '',
-                                   [x.split('/')[0] for x in el.split(' ')[1:]]] )
-        elif len(f2_f_lines) < len(f1_f_lines):
-            for idx, el in enumerate(f1_f_lines[len(f2_f_lines):]):
-                diff_lines.append(["fd", len(f2_f_lines) + 1 + idx,
-                                   [x.split('/')[0] for x in el.split(' ')[1:]], ''])
-
-    dumb_diff_time = time.time() - start_dumbdiff
-    return [diff_lines, dumb_diff_time, 0.0]
-
-
-def create_diff_entry_set()
 
 
 def compute_diff_set(file_path, file1, file2):
@@ -310,9 +226,11 @@ def compute_diff_set(file_path, file1, file2):
             diff_mod_normals, diff_new_normals, normals_no,
             diff_mod_faces, diff_new_faces, faces_no, set_diff_time, diff_del_verts]
 
+
 def reallocate_array(old_array):
     temp = np.zeros(old_array.shape, old_array.dtype)
     return np.concatenate((old_array, temp), axis=0)
+
 
 def generate_diff(models, obj_path, diff_path, serialize=False):
     """
@@ -432,6 +350,7 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
             c += 1
             print("SAVED DIFF " + str(j) + " for " + name)
             print("=====================================================")
+
 
 def generate_deleted_elements(models, obj_path, diff_path):
     for name, start, end, step, is_serialized in models:
