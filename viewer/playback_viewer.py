@@ -436,6 +436,7 @@ class Viewer(object):
 
 if __name__ == "__main__":
     v = Viewer("task02", 200, 1)
+
     if True:
         v.mainLoop()
     else:

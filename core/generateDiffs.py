@@ -4,6 +4,7 @@ import time
 import pickle
 import os.path
 import numpy as np
+from utility import common
 
 class DiffEntry(object):
     def __init__(self, key, data, set_name):
@@ -24,13 +25,20 @@ class DiffEntry(object):
         return hash(tuple(self.data))
 
     def __str__(self):
-        return "%s Key: %s --- Data: %s --- Key from: %s" % (self.set_name, self.key, self.data, self.other_key)
+        return "%s Key: %s --- Data: %s --- Key other: %s" % (self.set_name, self.key, self.data, self.other_key)
 
     def __repr__(self):
         return 'DiffEntry(key=%s, data=%s, key_from=%s, set_name="%s")' % (self.key, self.data, self.other_key, self.set_name)
 
     def reset_other_key(self):
         self.other_key = None
+
+    @staticmethod
+    def create_set_from_obj_line(data_list, label):
+        diff_entry_set = set()
+        for idx, el in enumerate(data_list):
+            diff_entry_set.add(DiffEntry(idx, [x.strip() for x in el.split(' ')[1:]], label))
+        return diff_entry_set
 
 def compute_diff(file_path, file1, file2, withUV= False):
     start_dumbdiff = time.time()
@@ -118,18 +126,18 @@ def compute_diff(file_path, file1, file2, withUV= False):
     dumb_diff_time = time.time() - start_dumbdiff
     return [diff_lines, dumb_diff_time, 0.0]
 
+
+def create_diff_entry_set()
+
+
 def compute_diff_set(file_path, file1, file2):
     start_set_diff = time.time()
 
     f1 = open(file_path + "/snap" + str(file1).zfill(6) + ".obj", 'r')
     f2 = open(file_path + "/snap" + str(file2).zfill(6) + ".obj", 'r')
 
-    f1_v_lines = []
-    f1_n_lines = []
-    f1_f_lines = []
-    f2_v_lines = []
-    f2_n_lines = []
-    f2_f_lines = []
+    f1_v_lines = []; f1_n_lines = []; f1_f_lines = []
+    f2_v_lines = []; f2_n_lines = []; f2_f_lines = []
 
     for line in f1:
         if line.startswith('v '):
@@ -148,38 +156,25 @@ def compute_diff_set(file_path, file1, file2):
 
     f1.close()
     f2.close()
-    print("=====================================================")
-    print("Verts 1: %s" % len(f1_v_lines))
-    print("Verts 2: %s" % len(f2_v_lines))
-    print("Normals 1: %s" % len(f1_n_lines))
-    print("Normals 2: %s" % len(f2_n_lines))
-    print("Faces 1: %s" % len(f1_f_lines))
-    print("Faces 2: %s" % len(f2_f_lines))
 
-    f1_v_lines_exp = set()
-    for idx, f1_v in enumerate(f1_v_lines):
-        f1_v_lines_exp.add(DiffEntry(idx, [x.strip() for x in f1_v.split(' ')[1:]], 'from'))
-    f2_v_lines_exp = set()
-    for idx, f2_v in enumerate(f2_v_lines):
-        f2_v_lines_exp.add(DiffEntry(idx, [x.strip() for x in f2_v.split(' ')[1:]], 'to'))
+    print("==================== %d to %d =========================" % (file1, file2))
+    print("#v1 - #v2: %d-%d" % (len(f1_v_lines), len(f2_v_lines)))
+    print("#n1 - #n2: %d-%d" % (len(f1_n_lines), len(f2_n_lines)))
+    print("#f1 - #f2: %d-%d" % (len(f1_f_lines), len(f2_f_lines)))
 
-    f1_n_lines_exp = set()
-    for idx, f1_n in enumerate(f1_n_lines):
-        f1_n_lines_exp.add(DiffEntry(idx, [x.strip() for x in f1_n.split(' ')[1:]], 'from'))
-    f2_n_lines_exp = set()
-    for idx, f2_n in enumerate(f2_n_lines):
-        f2_n_lines_exp.add(DiffEntry(idx, [x.strip() for x in f2_n.split(' ')[1:]], 'to'))
+    f1_v_lines_exp = DiffEntry.create_set_from_obj_line(f1_v_lines, "from")
+    f2_v_lines_exp = DiffEntry.create_set_from_obj_line(f2_v_lines, "to")
 
-    f1_f_lines_exp = set()
-    for idx, f1_f in enumerate(f1_f_lines):
-        f1_f_lines_exp.add(DiffEntry(idx, [x.strip() for x in f1_f.split(' ')[1:]], 'from'))
-    f2_f_lines_exp = set()
-    for idx, f2_f in enumerate(f2_f_lines):
-        f2_f_lines_exp.add(DiffEntry(idx, [x.strip() for x in f2_f.split(' ')[1:]], 'to'))
+    f1_n_lines_exp = DiffEntry.create_set_from_obj_line(f1_n_lines, "from")
+    f2_n_lines_exp = DiffEntry.create_set_from_obj_line(f2_n_lines, "to")
+
+    f1_f_lines_exp = DiffEntry.create_set_from_obj_line(f1_f_lines, "from")
+    f2_f_lines_exp = DiffEntry.create_set_from_obj_line(f2_f_lines, "to")
 
     verts_no = min(len(f1_v_lines), len(f2_v_lines))
     diff_mod_verts = []
     diff_new_verts = []
+    diff_del_verts = []
 
     normals_no = min(len(f1_n_lines), len(f2_n_lines))
     diff_mod_normals = []
@@ -195,7 +190,7 @@ def compute_diff_set(file_path, file1, file2):
     # ================
 
     new_verts = (f1_v_lines_exp ^ f2_v_lines_exp) & f2_v_lines_exp
-    #removed_verts = (f1_v_lines_exp ^ f2_v_lines_exp) & f1_v_lines_exp
+    removed_verts = (f1_v_lines_exp ^ f2_v_lines_exp) & f1_v_lines_exp
 
     for el in f1_v_lines_exp:
         el.reset_other_key()
@@ -220,8 +215,13 @@ def compute_diff_set(file_path, file1, file2):
         diff_new_verts.append([v_a.key, v_a.data])
         verts_no = max(verts_no, v_a.key + 1)
 
+    for v_d in removed_verts:
+        diff_del_verts.append([v_d.key, v_d.data])
+
     if verts_no == -1:
         verts_no = len(f2_v_lines_exp)
+
+    print()
 
     # ================
     # Diffing normals
@@ -308,7 +308,7 @@ def compute_diff_set(file_path, file1, file2):
 
     return [diff_mod_verts, diff_new_verts, verts_no,
             diff_mod_normals, diff_new_normals, normals_no,
-            diff_mod_faces, diff_new_faces, faces_no, set_diff_time]
+            diff_mod_faces, diff_new_faces, faces_no, set_diff_time, diff_del_verts]
 
 def reallocate_array(old_array):
     temp = np.zeros(old_array.shape, old_array.dtype)
@@ -344,15 +344,16 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
             if j+step > end:
                 diff_mod_verts, diff_new_verts, verts_no,\
                 diff_mod_normals, diff_new_normals, normals_no,\
-                diff_mod_faces, diff_new_faces, faces_no, set_diff_time = compute_diff_set(obj_files_path, j, end)
+                diff_mod_faces, diff_new_faces, faces_no, set_diff_time, diff_del_verts = compute_diff_set(obj_files_path, j, end)
             else:
                 diff_mod_verts, diff_new_verts, verts_no,\
                 diff_mod_normals, diff_new_normals, normals_no,\
-                diff_mod_faces, diff_new_faces, faces_no, set_diff_time = compute_diff_set(obj_files_path, j, j + step)
+                diff_mod_faces, diff_new_faces, faces_no, set_diff_time, diff_del_verts = compute_diff_set(obj_files_path, j, j + step)
 
             diff["valid"] = True
             diff["mod_verts"] = diff_mod_verts
             diff["new_verts"] = diff_new_verts
+            diff["del_verts"] = diff_new_verts
             diff["verts_no"] = verts_no
             diff["mod_normals"] = diff_mod_normals
             diff["new_normals"] = diff_new_normals
@@ -366,6 +367,11 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
             diff_lines = len(diff_mod_verts) + len(diff_new_verts) + \
                          len(diff_mod_normals) + len(diff_new_normals) + \
                          len(diff_mod_faces) + len(diff_new_faces)
+
+            #temp_f = open("../steps/" + name + "/diffset_del_v.txt", "a")
+            #temp_f.write(str(len(diff_del_verts)) + "\n")
+            #temp_f.write("\t" + str([el[0] for el in diff_del_verts]) + "\n\n")
+            #temp_f.close()
 
             if not serialize:
                 fh = open(diff_files_path + "/diff_" + str(j), "wb+")
@@ -427,59 +433,81 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
             print("SAVED DIFF " + str(j) + " for " + name)
             print("=====================================================")
 
+def generate_deleted_elements(models, obj_path, diff_path):
+    for name, start, end, step, is_serialized in models:
+        obj_files_path = obj_path + name
+        diff_files_path = diff_path + name + "/step_" + str(step)
+        for j in range(start, end, step):
+            if not is_serialized:
+                fh = open(diff_files_path + "/diff_" + str(j), "rb")
+                diff_data = pickle.loads(fh.read())
+                if 'mod_verts' in diff_data:
+                    mv_data = diff_data['mod_verts']
+                else:
+                    mv_data = []
+            else:
+                fh = open(diff_files_path + "/diff_" + str(j) + "/mod_verts", "rb")
+                mv_data = pickle.loads(fh.read())
+
+            obj_fh = open(obj_files_path + "/snap" + str(j).zfill(6) + ".obj", 'r')
+            verts = []
+            for line in obj_fh:
+                if line.startswith('v '):
+                    verts.append([float(x) for x in line.strip().split(' ')[1:]])
+                elif line.startswith('vn ') or line.startswith('f '):
+                    break
+
+            next_obj_fh = open(obj_files_path + "/snap" + str(j+1).zfill(6) + ".obj", 'r')
+            next_verts = []
+            for line in next_obj_fh:
+                if line.startswith('v '):
+                    next_verts.append([float(x) for x in line.strip().split(' ')[1:]])
+                elif line.startswith('vn ') or line.startswith('f '):
+                    break
+
+            not_del_verts_idx = []
+            for mv in mv_data:
+                # [v_m.other_key, v_m.key, v_m.set_name[0], v_m.data]
+                if mv[2] == "f":
+                    not_del_verts_idx.append(mv[1])
+                else:
+                    not_del_verts_idx.append(mv[0])
+
+            deleted_verts = []
+            for idx_v, v in enumerate(verts):
+                try:
+                    if (idx_v in not_del_verts_idx) or (v == next_verts[idx_v]):
+                        continue
+                    deleted_verts.append([idx_v, v])
+                except IndexError:
+                    deleted_verts.append([idx_v, v])
+
+            if not is_serialized:
+                pass
+                # fh = open(diff_files_path + "/diff_" + str(j), "rb")
+                # diff_data = pickle.loads(fh.read())
+            else:
+                pass
+                # fh = open(diff_files_path + "/diff_" + str(j) + "/mod_verts", "rb")
+                # diff_data = pickle.loads(fh.read())
+
+
+
 
 if __name__ == "__main__":
     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
     # name, start, end, step  ["fighter", 0, 1609, 1], ["explorer", 1730, 1858, 1],
     # models = [["sage", 1677, 2136, 1], ["gorilla", 0, 2719, 1], ["elf", 0, 4307, 1], ["elder", 2430, 3119, 1]]
 
-    models = [["alien", 1024, 2216, 1], ["man", 0, 1580, 1]]
+    models = [["alien", 1024, 2216, 1],
+              ["man", 0, 1580, 1],
+              ["merman", 1000, 2619, 1]]
 
+    models = [["ogre", 0, 50, 1], ["monster", 0, 50, 1]]
     # alien to 1752
-
     obj_files_path = "/Volumes/Part Mac/obj2_files/"
     diff_files_path = "/Volumes/PART FAT/diff_new/"
-    start = 0
-    generate_diff(models, obj_files_path, diff_files_path, serialize=True)
+    # generate_diff(models, obj_files_path, diff_files_path, serialize=True)
 
-'''
-if __name__ == "__main__":
-    for name, end in [["task06", 987]]:     # ["gargoyle2", 1058]   ["monster", 967]]   ["task02", 2619]    ["task06", 987]
-        obj_files_path = "../obj2_files/" + name
-        diff_files_path = "../diff_new/" + name
-        start = 0
-
-        total_time = 0
-
-        diff = {}
-        for j in range(start, end):
-            diff_mod_verts, diff_new_verts, verts_no,\
-            diff_mod_normals, diff_new_normals, normals_no,\
-            diff_mod_faces, diff_new_faces, faces_no, set_diff_time = compute_diff_set(obj_files_path, j, j+1)
-
-            diff["valid"] = True
-            diff["mod_verts"] = diff_mod_verts
-            diff["new_verts"] = diff_new_verts
-            diff["verts_no"] = verts_no
-            diff["mod_normals"] = diff_mod_normals
-            diff["new_normals"] = diff_new_normals
-            diff["normals_no"] = normals_no
-            diff["mod_faces"] = diff_mod_faces
-            diff["new_faces"] = diff_new_faces
-            diff["faces_no"] = faces_no
-
-            total_time += set_diff_time
-
-            diff_lines = len(diff_mod_verts) + len(diff_new_verts) + \
-                         len(diff_mod_normals) + len(diff_mod_normals) + \
-                         len(diff_mod_faces) + len(diff_mod_faces)
-
-            fh = open(diff_files_path + "/diff_" + str(j), "wb+")
-            if diff_lines > 0:
-                pickle.dump(diff, fh)
-            else:
-                pickle.dump({"valid": False}, fh)
-            fh.close()
-            print("SAVED DIFF " + str(j) + " for " + name)
-            print("=====================================================")
-'''
+    models = [["monster", 0, 50, 1, False]]
+    generate_deleted_elements(models, obj_files_path, diff_files_path)

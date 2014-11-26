@@ -67,7 +67,13 @@ def parse_single_step_to_json(line_data):
 
     parse = ['bpy.ops.sculpt.brush_stroke',
              'bpy.ops.wm.radial_control',
-             'bpy.ops.paint.brush_select']
+             'bpy.ops.paint.brush_select',
+             'bpy.ops.view3d.move',
+             'bpy.ops.view3d.rotate',
+             'bpy.ops.view3d.zoom',
+             'bpy.ops.view3d.properties',
+             'bpy.ops.view3d.view_orbit',
+             'bpy.ops.ed.undo']
 
     argument_label_re_pattern = "([a-zA-z]+)="
     arguments_list_pattern = "\((.+)\)"
@@ -92,14 +98,17 @@ def parse_single_step_to_json(line_data):
             print(arg_list)
             print()
 
-        json_string_form = '{' + arg_list[0] + '}'
-        json_string_form = json_string_form.replace("'", '"')
-        json_string_form = json_string_form.replace("False", '"False"')
-        json_string_form = json_string_form.replace("True", '"True"')
-        json_string_form = json_string_form.replace("(", '[')
-        json_string_form = json_string_form.replace(")", ']')
-        if debug:
-            print(json_string_form)
+        if arg_list:
+            json_string_form = '{' + arg_list[0] + '}'
+            json_string_form = json_string_form.replace("'", '"')
+            json_string_form = json_string_form.replace("False", '"False"')
+            json_string_form = json_string_form.replace("True", '"True"')
+            json_string_form = json_string_form.replace("(", '[')
+            json_string_form = json_string_form.replace(")", ']')
+            if debug:
+                print(json_string_form)
+        else:
+            json_string_form = '{}'
 
         try:
             json_form = json.loads(json_string_form)
@@ -192,6 +201,8 @@ def cluster_data(filtered_data, steps):
 if __name__ == "__main__":
     models = ["elder", "elf", "engineer", "explorer", "fighter", "gorilla", "sage"]
 
+    models = ["monster"]
+
     for model_name in models:
         steps_files_path = "../steps/" + model_name + "/steps.txt"
         steps = 1
@@ -210,6 +221,7 @@ if __name__ == "__main__":
         #        print(str(op)[:100])
 
         # out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
+
         out = open("../steps/" + model_name + "/steps.json", "w")
-        json.dump(filtered_data, out)
+        json.dump(filtered_data, out, sort_keys=True, indent=2)
         out.close()

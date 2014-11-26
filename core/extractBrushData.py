@@ -19,6 +19,7 @@ class BrushData(object):
         f = open(self.step_path, 'r')
         self.steps = json.load(f)
 
+
     @staticmethod
     def load_brush_size_from_blend(path):
         bpy.ops.wm.open_mainfile(filepath=path, filter_blender=True,
@@ -30,6 +31,7 @@ class BrushData(object):
                        bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.unprojected_radius)
         except KeyError:
                 print('modifier not found')
+
 
     def load_brushes_size(self):
         blend_files = common.get_files_from_directory(self.root_blend_files + self.model_name + "/", ['blend'], "snap")
@@ -52,6 +54,7 @@ class BrushData(object):
         bs_file = open("../steps/" + self.model_name + "/b_size", "wb+")
         pickle.dump(brush_sizes, bs_file)
         bs_file.close()
+
 
     def load_brush_strokes(self, stepmax):
         for k in range(stepmax+1):
@@ -80,69 +83,30 @@ class BrushData(object):
                     self.paths.append([[0.0, 0.0, 0.0]])
 
 
-    def load_brush_stroke(self, step_no):
-        stroke_op = []
+    def load_brush_stroke(self, stroke_op):
         paths = []
-        try:
-            step_ops = self.steps[str(step_no)]
-            for op in step_ops:
-                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                    stroke_op.append(op)
-
-            if len(stroke_op) > 0:
-                for s_op in stroke_op:
-                    p = self.getPath(s_op)
-                    if len(p) > 0:
-                        paths.append(p)
-        except KeyError as e:
-            print(e)
-
+        for s_op in stroke_op:
+            p = self.getPath(s_op)
+            if len(p) > 0:
+                paths.append(p)
         return paths
 
-    def load_brush_mode(self, step_no):
 
-        # 0 = normal
-        # 1 = invert
-        # 2 = smooth
-
-        mapping = {
-            'NORMAL': 0,
-            'INVERT': 1,
-            'SMOOTH': 2
-        }
-
-        stroke_op = []
-        modes = None
-        try:
-            step_ops = self.steps[str(step_no)]
-            for op in step_ops:
-                if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
-                    stroke_op.append(op)
-        except KeyError as e:
-            print(e)
-
-        try:
-            if len(stroke_op) > 0:
-                for s_op in stroke_op:
-                    if "mode" in s_op:
-                        modes = mapping[s_op["mode"]]
-        except KeyError as e:
-            print("NEW MODE - " + str([x['mode'] for x in stroke_op]))
-
+    def load_brush_mode(self, stroke_op):
+        modes = []
+        for s_op in stroke_op:
+            if "mode" in s_op:
+                modes.append(s_op["mode"])
         return modes
+
 
     def load_brush_size(self, step_no):
         blend_file = self.root_blend_files + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
-        #if not os.path.isfile(blend_file):
-        #    blend_file = "/Volumes/Part Mac/3ddata/" + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
-        #    if not os.path.isfile(blend_file):
-        #        blend_file = "/Users/christian/Desktop/3ddata/" + self.model_name + "/snap" + str(step_no).zfill(6) + ".blend"
-
         brush_sizes = []
+
         bpy.ops.wm.open_mainfile(filepath=blend_file, filter_blender=True,
                                  filemode=8, display_type='FILE_DEFAULTDISPLAY',
                                  load_ui=False, use_scripts=True)
-
         try:
             if bpy.data.scenes["Scene"]:
                 brush_sizes = [bpy.data.scenes["Scene"].tool_settings.unified_paint_settings.size,
@@ -151,6 +115,7 @@ class BrushData(object):
             print('brush not found')
 
         return brush_sizes
+
 
     @staticmethod
     def getPath(stroke_op):
@@ -168,12 +133,22 @@ class BrushData(object):
             path = path[:-zeroes]
         return path
 
+
     @staticmethod
     def get_path_length(path):
         l = 0.0
         for k in range(len(path) - 1):
             l += numpy.linalg.norm(path[k+1] - path[k])
         return l
+
+
+    @staticmethod
+    def get_path_pressure(stroke_op):
+        pressures = []
+        for point in stroke_op["stroke"]:
+            pressures.append(float(point["pressure"]))
+        return pressures
+
 
     def get_path_aa_bbox(self, points):
         aabb_points = []
@@ -223,9 +198,9 @@ class BrushData(object):
         center, m_pos, m_ext, m_rot = self.build_from_covariance_matrix(cov_m, points)
 
         vol = BrushData.obb_volume(m_ext)
-        obb_points = BrushData.get_bounding_box(m_rot, m_ext, m_pos)
+        obb_points, r, u, f = BrushData.get_bounding_box(m_rot, m_ext, m_pos)
 
-        return [obb_points, vol]
+        return [obb_points, vol, m_pos, m_ext, r, u, f]
 
     def build_from_covariance_matrix(self, cov_m, points):
         eigval, eigvec = numpy.linalg.eig(cov_m)
@@ -274,7 +249,7 @@ class BrushData(object):
         p[5] = m_pos + r * m_ext[0] + u * m_ext[1] - f * m_ext[2]
         p[6] = m_pos + r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
         p[7] = m_pos - r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
-        return p
+        return p, r, u, f
 
     @staticmethod
     def normalize(v):
@@ -332,22 +307,33 @@ class BrushData(object):
         '''
         brush size
         brush mode
+        brush pressure
         path length
         path OBB
         path AABB
         distanza tra i brush path
         '''
+        stroke_op = []
+        try:
+            step_ops = self.steps[str(step_no)]
+            for op in step_ops:
+                if "op_name" in op and op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                    stroke_op.append(op)
+        except KeyError:
+            print("Step %d not found " % step_no)
 
         b_size = self.load_brush_size(step_no)
-        b_mode = self.load_brush_mode(step_no)
-        b_paths = self.load_brush_stroke(step_no)
+        b_mode = self.load_brush_mode(stroke_op)
+        b_paths = self.load_brush_stroke(stroke_op)
 
         b_lenght = []
+        b_pressure = []
         b_obb_boxes = []
         b_aabb_boxes = []
         b_paths_centroid = []
-        for path in b_paths:
+        for idx_p, path in enumerate(b_paths):
             b_lenght.append(self.get_path_length(path))
+            b_pressure.append(self.get_path_pressure(stroke_op[idx_p]))
             b_obb_boxes.append(self.get_path_bbox(path))
             b_aabb_boxes.append(self.get_path_aa_bbox(path))
             b_paths_centroid.append(self.get_path_centroid(path))
@@ -367,8 +353,16 @@ class BrushData(object):
             return_data["paths"] = list_b_paths
 
             list_b_obb_boxes = []
-            for bb, volbb in b_obb_boxes:
-                list_b_obb_boxes.append([[[float(p[0]), float(p[1]), float(p[2])] for p in bb], volbb])
+            for bb, volbb, m_pos, m_ext, r, u, f in b_obb_boxes:
+                list_b_obb_boxes.append({
+                                         "bbox_points": [[float(p[0]), float(p[1]), float(p[2])] for p in bb],
+                                         "bbox_volume": volbb,
+                                         "bbox_center": [float(m_pos[0]), float(m_pos[1]), float(m_pos[2])],
+                                         "bbox_ext": [float(m_ext[0]), float(m_ext[1]), float(m_ext[2])],
+                                         "bbox_r": [float(r[0]), float(r[1]), float(r[2])],
+                                         "bbox_u": [float(u[0]), float(u[1]), float(u[2])],
+                                         "bbox_f": [float(f[0]), float(f[1]), float(f[2])]
+                })
             return_data["obboxes"] = list_b_obb_boxes
 
             list_b_aabb_boxes = []
@@ -380,17 +374,23 @@ class BrushData(object):
 
             return_data["lenghts"] = b_lenght
 
+            return_data["pressure"] = b_pressure
+
         return return_data
 
 
 if __name__ == "__main__":
+    models = [["elder", 3119], ["elf", 4307], ["engineer", 987],
+              ["explorer", 1858], ["fighter", 1608], ["gargoyle", 1058],
+              ["gorilla", 2719], ["monster", 967],
+              ["ogre", 1720], ["sage", 2136]]
 
-    models = [["engineer", 987], ["fighter", 1608], ["gorilla", 2719], ["sage", 2136]]
+    models = [["monster", 967]]
 
     for model_name, max_step in models:
         bd = BrushData(model_name, max_step)
         data = bd.extract_data()
 
         out = open("../steps/" + bd.model_name + "/brush_data.json", "w")
-        json.dump(data, out)
+        json.dump(data, out, indent=2, sort_keys=True)
         out.close()

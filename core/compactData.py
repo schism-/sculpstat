@@ -2,50 +2,161 @@ __author__ = 'christian'
 
 import json
 import pickle
+import utility.common as common
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import numpy
 import os.path
 
-def diff_compressing(diff_root_path):
 
-    diff_model_names = [["fighter", 1609], ["task01", 1720], ["task02", 1002], ["task06", 987], ["monster", 967], ["gargoyle2", 1057]]
+'''
+=================================================================================================
+|                                       UTILITY METHODS                                         |
+=================================================================================================
+'''
 
-    # manca alien e man
-    diff_model_names = [["elder", 3119], ["elf", 4307], ["engineer", 987], ["explorer", 1858], ["fighter", 1608],
-                        ["gargoyle2", 1058], ["gorilla", 2719], ["merman", 1003], ["monster", 967], ["ogre", 1720],
-                        ["sage", 2136]]
+def null_diff_data():
+    diff_data = {}
+    diff_data["added_vertices"] = None
+    diff_data["deleted_vertices"] = None
+    diff_data["added_faces"] = None
+    diff_data["deleted_faces"] = None
+    diff_data["diff_centroids"] = None
+    diff_data["diff_bbox"] = None
+    return diff_data
 
-    diff_model_names = [["engineer", 987], ["merman", 1003], ["monster", 967], ["ogre", 1720]]
+def null_brush_data():
+    brush_data = {}
+    brush_data["valid"] = False
+    brush_data["size"] = None
+    brush_data["mode"] = None
+    brush_data["brush_number"] = None
+    brush_data["paths"] = None
+    brush_data["obboxes"] = None
+    brush_data["aabboxes"] = None
+    brush_data["centroids"] = None
+    brush_data["lenghts"] = None
+    return brush_data
 
+def sanitize_brush_data(brush_data):
+    if not brush_data["valid"]:
+        return null_brush_data()
+    else:
+        if not brush_data["size"]:
+            brush_data["size"] = None
+        if not brush_data["paths"]:
+            brush_data["paths"] = None
+        if not brush_data["obboxes"]:
+            brush_data["obboxes"] = None
+        else:
+            temp = []
+            for bb in brush_data["obboxes"]:
+                temp.append([bb["bbox_center"], bb["bbox_ext"]])
+            brush_data["obboxes"] = temp[:]
+        if not brush_data["aabboxes"]:
+            brush_data["aabboxes"] = None
+        return brush_data
+
+def get_diff_data_step(diff_data, step_no):
+    step_diff_data = {}
+
+    step_diff_data["added_vertices"] = diff_data["added_vertices"][step_no]
+    step_diff_data["deleted_vertices"] = diff_data["deleted_vertices"][step_no]
+    step_diff_data["added_faces"] = diff_data["added_faces"][step_no]
+    step_diff_data["deleted_faces"] = diff_data["deleted_faces"][step_no]
+
+    # list of [c_x, c_y, c_z]
+    step_diff_data["diff_centroids"] = diff_data["diff_centroids"][step_no]
+
+    # [pos, bbox exts]
+    step_diff_data["diff_bbox"] = diff_data["diff_bbox"][step_no]
+
+    return step_diff_data
+
+
+def generate_final_data(model_names):
+    """
+        For each step
+
+        final_data = {
+            diff_data = {
+                "added_vertices"
+                "deleted_vertices"
+                "added_faces"
+                "deleted_faces"
+                "diff_added_centroids"
+                "diff_added_bbox"
+                "diff_deleted_centroids"
+                "diff_deleted_bbox"
+            }
+
+            brush_data = {
+                "valid"
+                "size"
+                "mode"
+                "brush_number"
+                "paths"
+                "obboxes"
+                "aabboxes"
+                "lenghts"
+            }
+        }
+    """
+
+    for model_name in model_names:
+        print("Creating fina data for " + model_name)
+
+        final_data = {}
+        brush_data = common.load_json("../steps/" + model_name[0] + "/brush_data.json")
+        diff_data  = common.load_json("../steps/" + model_name[0] + "/diff_plot_data.json")
+
+        final_data[0] = {
+            "step_number" : 0,
+            "valid" : brush_data[0]["valid"],
+            "brush_data" : sanitize_brush_data(brush_data['0']),
+            "diff_data" : null_diff_data()
+        }
+
+        for step_idx in range(1, len(brush_data)):
+            print(str(step_idx) + " ",)
+            final_data[step_idx] = {}
+            final_data[step_idx]["step_number"] = step_idx
+            final_data[step_idx]["valid"] = brush_data[str(step_idx)]["valid"]
+            final_data[step_idx]["brush_data"] = sanitize_brush_data(brush_data[str(step_idx)])
+            final_data[step_idx]["diff_data"] = get_diff_data_step(diff_data, step_idx - 1)
+
+        common.save_json(final_data, "../steps/" + model_name[0] + "/final_data.json", compressed=False)
+
+
+def diff_compressing(diff_root_path, diff_model_names):
     for model_name in diff_model_names:
-
+        print("Compressing diff data for " + model_name,)
         added_vertices = []
         deleted_vertices = []
         added_faces = []
         deleted_faces = []
-
         diff_centroids = []
         diff_bbox = []
+        diff_added_centroids = []
+        diff_deleted_centroids = []
+        diff_added_bbox = []
+        diff_deleted_bbox = []
 
         step_path = "../steps/" + model_name[0] + "/mesh_data.json"
-        f = open(step_path, 'r')
-        mesh_data = json.load(f)
+        mesh_data = common.load_json(step_path)
 
         serialized = False
         if os.path.isfile(diff_root_path + model_name[0] + "/step_1/serialized.txt"):
             serialized = True
             print("SERIALIZED")
         else:
-            print("not serialized")
+            print("NOT SERIALIZED")
 
         for diff_no in range(0, model_name[1]):
-            print("Loading model %s step %d" % (model_name[0], diff_no))
-            # fh_c = open("../diff_new/" + model_name[0] + "/step_1/diff_" + str(diff_no), 'rb')
+            print(str(diff_no) + "/" + str(model_name[1]) + " ",)
 
             if not serialized:
-                fh_c = open(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no), 'rb')
-                data_temp = pickle.load(fh_c)
+                data_temp = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no))
 
                 if not data_temp["valid"]:
                     data_c = {"valid":False}
@@ -55,18 +166,11 @@ def diff_compressing(diff_root_path):
                     data_c['verts_no'] = int(data_temp['verts_no'])
                     data_c['new_faces'] = len(data_temp['new_faces'])
                     data_c['faces_no'] = int(data_temp['faces_no'])
-
                     data_av_c = data_temp["new_verts"]
-                fh_c.close()
             else:
-                fh_c = open(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/diff_head", "rb")
-                data_c = pickle.load(fh_c)
-                fh_c.close()
-
+                data_c = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/diff_head")
                 if data_c["valid"]:
-                    fh_av = open(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/new_verts", "rb")
-                    data_av_c = pickle.load(fh_av)
-                    fh_av.close()
+                    data_av_c = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/new_verts")
 
             if not data_c['valid']:
                 added_vertices.append(0)
@@ -91,7 +195,6 @@ def diff_compressing(diff_root_path):
                 if len(data_av_c) > 0:
                     # list of [c_x, c_y, c_z]
                     diff_centroids.append(get_centroid(data_av_c))
-
                     # list of [pos, bbox exts]
                     obb_points, bbox_pos, m_ext, r, u, f = get_bbox(data_av_c)
                     diff_bbox.append([bbox_pos, m_ext])
@@ -106,30 +209,21 @@ def diff_compressing(diff_root_path):
         final_data["deleted_faces"] = deleted_faces
         final_data["diff_centroids"] = diff_centroids
         final_data["diff_bbox"] = diff_bbox
-
-        out = open("../steps/" + model_name[0] + "/diff_plot_data.json", "w")
-        json.dump(final_data, out)
-        out.close()
+        common.save_json(final_data, "../steps/" + model_name[0] + "/diff_plot_data.json", compressed=False)
 
 def brush_compressing(model_names):
     feature_vectors = {}
 
     for model_name in model_names:
-        json_path = "../steps/" + model_name + "/brush_data.json"
-        brush_data_file = open(json_path, "r")
-        brush_data = json.load(brush_data_file)
-
+        brush_data = common.load_json("../steps/" + model_name + "/brush_data.json")
         feature_vectors[model_name] = []
-
         for step_idx in brush_data:
             print("Model %s | Step %s" % (model_name, step_idx))
             data = brush_data[str(step_idx)]
             if data["valid"]:
                 sizes = float(data["size"][0])
                 unp_sizes = float(data["size"][1])
-
                 modes = int(data["mode"])
-
                 b_number = data["brush_number"]
                 for i in range(b_number + 1):
                     path_points = data["paths"][i]
@@ -170,9 +264,7 @@ def brush_compressing(model_names):
                      aabb_dimensions[0], aabb_dimensions[1], aabb_dimensions[2], int(step_idx)]
                 )
 
-        out = open("../steps/" + model_name + "/feature_vector.json", "w")
-        json.dump(feature_vectors[model_name], out)
-        out.close()
+        common.save_json(feature_vectors[model_name], "../steps/" + model_name + "/feature_vector.json", compressed=True)
 
         out = open("../steps/" + model_name + "/feature_vector.csv", "w")
         out.write('size,unp_size,mode,lenght,centroid_x,centroid_y,centroid_z,obb_dim_1,obb_dim_2,obb_dim_3,aabb_dim_1,aabb_dim_2,aabb_dim_3,step\n')
@@ -293,8 +385,16 @@ def normalize(v):
 
 
 if __name__ == "__main__":
-    # diff_compressing("/Volumes/PART FAT/diff_new/")
-    models = [["elder", 3119], ["elf", 4307], ["engineer", 987], ["explorer", 1858], ["fighter", 1608],
-                        ["gargoyle2", 1058], ["gorilla", 2719], ["merman", 1003], ["monster", 967], ["ogre", 1720],
-                        ["sage", 2136]]
-    brush_compressing()
+
+    models = [["elder", 3119], ["elf", 4307], ["engineer", 987],
+              ["explorer", 1858], ["fighter", 1608], ["gargoyle", 1058],
+              ["gorilla", 2719], ["monster", 967],
+              ["ogre", 1720], ["sage", 2136]]
+
+    # ["merman", 1003],
+
+    # diff_compressing("/Volumes/PART FAT/diff_new/", models)
+    # brush_compressing(models)
+
+    models = [["monster", 967]]
+    generate_final_data(models)
