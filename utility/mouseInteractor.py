@@ -82,8 +82,8 @@ class MouseInteractor(object):
             self.rotationMatrix.addRotation(rY, 0, 1, 0)
             rX = deltaY * self.scalingFactorRotation
             self.rotationMatrix.addRotation(rX, 1, 0, 0)
-            print("self.rotationMatrix = " + repr(self.rotationMatrix.getCurrentMatrix()))
-            print("self.translationMatrix = " + repr(self.translationMatrix.getCurrentMatrix()))
+            # print("self.rotationMatrix = " + repr(self.rotationMatrix.getCurrentMatrix()))
+            # print("self.translationMatrix = " + repr(self.translationMatrix.getCurrentMatrix()))
         elif self.mouseButtonPressed == GLUT_LEFT_BUTTON and self.zooming:
             if (not self.checkGUI(x, y, True)[0]):
                 tZ = deltaY * self.scalingFactorTranslation

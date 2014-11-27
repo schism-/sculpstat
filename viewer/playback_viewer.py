@@ -19,8 +19,7 @@ from utility.mouseInteractor import MouseInteractor
 from utility.keyboardInteractor import KeyboardInteractor
 
 class Viewer(object):
-
-    def __init__(self, model_name, current_step = 0, steps=None):
+    def __init__(self, model_name, current_step = 0, steps=None, obj_root=None, blend_root=None, diff_root=None):
 
         # Helper classes
         self.mouseInteractor = None
@@ -54,23 +53,22 @@ class Viewer(object):
         # File paths
         self.model_name = model_name
 
-        self.obj_root = "/Volumes/Part Mac/obj2_files/"
-        self.blend_root = "/Volumes/PART FAT/3ddata/"
-        self.diff_root = "/Volumes/PART FAT/diff_new/"
-        self.steps_root = ""
+        self.obj_root = obj_root
+        self.blend_root = blend_root
+        self.diff_root = diff_root
+        self.steps_root = "../steps/"
 
         self.obj_path = self.obj_root + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".obj"
         self.blend_path = self.blend_root + self.model_name + "/snap" + str(self.current_step).zfill(6) + ".blend"
-        self.numpy_path = "../numpy_data/" + self.model_name + "/snap" + str(self.current_step).zfill(6) + "/"
         if steps:
             self.diff_path = self.diff_root + self.model_name + "/step_" + str(steps) + "/"
-            self.step_path = "../steps/" + self.model_name + "/steps_clust" + str(steps) + ".json"
+            self.step_path = self.steps_root + self.model_name + "/steps_clust" + str(steps) + ".json"
         else:
             self.diff_path = self.diff_root + self.model_name + "/"
-            self.step_path = "../steps/" + self.model_name + "/steps.json"
+            self.step_path = self.steps_root + self.model_name + "/steps.json"
 
-        bs_file = open("../steps/" + self.model_name + "/b_size", "rb")
-        self.brushes_size = pickle.load(bs_file)
+        bs_file = open(self.steps_root + self.model_name + "/b_size", "rb")
+        self.brushes_size = pickle.loads(bs_file.read())
         bs_file.close()
 
         f = open(self.step_path, 'r')
@@ -100,6 +98,7 @@ class Viewer(object):
 
         print()
 
+
     def initLightning(self):
         lP = 7
         lA = 0.1
@@ -125,6 +124,7 @@ class Viewer(object):
         glMaterialfv( GL_FRONT_AND_BACK, GL_SPECULAR, [0.8, 0.8, 0.8, 1] )
         glMaterialf( GL_FRONT_AND_BACK, GL_SHININESS, 20 )
 
+
     def mainLoop(self, load_mesh=None):
         glutInit(sys.argv)
         glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL )
@@ -139,6 +139,7 @@ class Viewer(object):
         glutKeyboardFunc(self.keyboardInteractor.keyboardPressed)
         glutKeyboardUpFunc(self.keyboardInteractor.keyboardUp)
         glutMainLoop()
+
 
     def loadFinalCandidate(self, load_mesh=None):
         self.meshes = [None]
@@ -210,6 +211,7 @@ class Viewer(object):
             path = path[:-zeroes]
         return path
 
+
     def drawScene(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -263,6 +265,7 @@ class Viewer(object):
             glEnable( GL_LIGHTING )
         glutSwapBuffers()
 
+
     def resizeWindow(self, width, height):
         if height == 0:
             height = 1
@@ -273,21 +276,14 @@ class Viewer(object):
         gluPerspective(45.0 , float(width)/float(height), 0.1, 100.0)
         glMatrixMode(GL_MODELVIEW)
 
+
     def loadNextModel(self):
-        start = time.time()
+        done = self.meshes[0].apply_diff_set(self.current_step, self.diff_path)
 
-        #done = self.meshes[0].apply_diff(self.current_step, self.diff_path, reverse=False)
-        done = self.meshes[0].apply_diff_set(self.current_step, self.diff_path, reverse=False)
-
-        #print("Applying diff took %f" % (time.time() - start))
         if done:
-            start = time.time()
             self.loadModel(self.meshes[0], True)
-            #print("Load model took %f" % (time.time() - start))
             self.brush_paths = []
-            start = time.time()
             self.loadBrushStrokes(self.step_path, self.current_step if self.is_steps else self.current_step + 1)
-            #print("Load brush took %f" % (time.time() - start))
 
             self.current_step += 1
 
@@ -322,6 +318,7 @@ class Viewer(object):
             self.loadModel(self.meshes[0], True)
         self.current_step -= 1
         pass
+
 
     def draw_mesh(self, m):
         if m.VBOQuadVertices is not None:
@@ -389,42 +386,6 @@ class Viewer(object):
         #glDepthFunc(GL_LEQUAL)
 
 
-
-        '''
-        1. Clear stencil buffer
-        2. Place clip plane where you want to clip your object
-        3. use glDepthTest(GL_FALSE), glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE), glStencilFunc(GL_ALWAYS)
-        4. Set stencil operations to GL_INCR, glCullFace(GL_BACK)
-        5. draw your object
-        6. Set stencil operations to GL_DECR, glCullFace(GL_FRONT)
-        7. draw your object
-
-        glEnable(GL_STENCIL_TEST)
-        glDisable(GL_DEPTH_TEST)
-        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE)
-        glStencilFunc(GL_ALWAYS, 0, ~1)
-        glStencilOp(GL_INCR, GL_INCR, GL_INCR)
-        glEnable(GL_CULL_FACE)
-        glCullFace(GL_BACK)
-        glPushMatrix()
-        for p in [el for idx, el in enumerate(path) if idx % (len(path)//5) == 0]:
-            glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
-            glTranslate(-p[0], -p[1], -p[2])
-        glPopMatrix()
-        glStencilOp(GL_DECR, GL_DECR, GL_DECR)
-        glCullFace(GL_FRONT)
-        glPushMatrix()
-        for p in [el for idx, el in enumerate(path) if idx % (len(path)//5) == 0]:
-            glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 20, 20)
-            glTranslate(-p[0], -p[1], -p[2])
-        glPopMatrix()
-        glDisable(GL_CULL_FACE)
-        glEnable(GL_DEPTH_TEST)
-        glDisable(GL_STENCIL_TEST)
-        '''
-
     def drawBBoxes(self, m):
         drawBBox(m.bbox)
 
@@ -435,14 +396,19 @@ class Viewer(object):
         m.VBOColors = vbo.VBO(m.colors)
 
 if __name__ == "__main__":
-    v = Viewer("task02", 200, 1)
+
+    obj_root = "/Volumes/Part Mac/obj2_files/"
+    blend_root = "/Volumes/PART FAT/3ddata/"
+    diff_root = "/Volumes/PART FAT/diff_completi/"
+
+    v = Viewer("monster", 0, 1, obj_root, blend_root, diff_root)
 
     if True:
         v.mainLoop()
     else:
         m = mMesh(False)
-        m.loadOBJModel('../obj_files/task01/snap000001.obj', False)
-        m.apply_diff(1, '../diff/task01/', False)
+        m.loadOBJModel('/Volumes/Part Mac/obj_smooth_normals_files/monster/snap000200.obj', False)
+        # m.apply_diff(1, '../diff/task01/', False)
         v.mainLoop(m)
 
     #mainLoop(model_name = "task02", stepno = 2619, stepwindow = None, loadB = False, isNumpy = False)

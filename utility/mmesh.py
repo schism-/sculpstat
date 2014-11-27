@@ -6,6 +6,8 @@ import numpy.random
 import pickle
 import time
 import nearpy
+import os.path
+from utility import common
 from collections import defaultdict
 
 from OpenGL.GL.ARB.vertex_buffer_object import *
@@ -95,7 +97,7 @@ class mMesh:
         if isNumpy:
             self.loadOBJModelFromNumpy(path)
         else:
-            self.loadOBJModel(path, loadBrushes)
+            self.loadOBJModel(path)
         print("OBJ loaded in %f" %(time.time() - start))
         print()
 
@@ -201,11 +203,9 @@ class mMesh:
         print("Done")
 
 
-    def loadOBJModel(self, path, loadBrushes):
+    def loadOBJModel(self, path):
 
         self.__init__(True)
-
-        self.loadANNEngine()
 
         path_parts = path.split('/')
         self.name = (path_parts[-1].split('.'))[-2]
@@ -284,9 +284,33 @@ class mMesh:
         print("Done")
 
 
-    def read_diff_set(self, path):
-        f = open(path, 'rb')
-        data = pickle.load(f)
+    def read_diff_set(self, path, step_no):
+        if os.path.isfile(path + "serialized.txt"):
+            diff_head = common.load_pickle(path + "diff_" + str(step_no) + "/diff_head")
+            if diff_head["valid"]:
+                data = {}
+                data["valid"] = True
+                data["new_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_verts")
+                data["mod_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_verts")
+                data["del_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_verts")
+                data["verts_no"] = diff_head["verts_no"]
+
+                data["new_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_normals")
+                data["mod_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_normals")
+                data["del_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_normals")
+                data["normals_no"] = diff_head["normals_no"]
+
+                data["new_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_faces")
+                data["mod_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_faces")
+                data["del_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_faces")
+                data["faces_no"] = diff_head["faces_no"]
+            else:
+                data = {}
+                data["valid"] = False
+        else:
+            print("NOT SERIALIZED")
+            f = open(path + "/diff_" + str(step_no), 'rb')
+            data = pickle.load(f)
 
         v_mod = data["mod_verts"] if "mod_verts" in data else []
         v_add = data["new_verts"] if "new_verts" in data else []
@@ -306,7 +330,7 @@ class mMesh:
     def apply_diff_set(self, current_step, diff_path):
         self.mod_vertices, self.new_vertices, verts_no, \
         self.mod_normals, self.new_normals, normals_no, \
-        self.mod_faces, self.new_faces, faces_no = self.read_diff_set(diff_path + "diff_" + str(current_step))
+        self.mod_faces, self.new_faces, faces_no = self.read_diff_set(diff_path, current_step)
 
         if len(self.mod_vertices) + len(self.new_vertices) +\
             len(self.mod_normals) + len(self.new_normals) +\
@@ -346,10 +370,10 @@ class mMesh:
         #     UPDATING NORMALS
         # ==========================
 
-        if normals_no >= len(self.normals):
-            self.normals = self.normals  + [None, ] * (normals_no + 1 - len(self.normals))
+        if normals_no > len(self.normals):
+            self.normals = self.normals  + [None, ] * (normals_no - len(self.normals))
         elif normals_no < len(self.normals):
-            self.normals = self.normals[:normals_no + 1]
+            self.normals = self.normals[:normals_no]
 
         for n_m in self.mod_normals:
             if n_m[2] == "t":

@@ -64,15 +64,128 @@ def get_diff_data_step(diff_data, step_no):
     step_diff_data["deleted_vertices"] = diff_data["deleted_vertices"][step_no]
     step_diff_data["added_faces"] = diff_data["added_faces"][step_no]
     step_diff_data["deleted_faces"] = diff_data["deleted_faces"][step_no]
-
     # list of [c_x, c_y, c_z]
     step_diff_data["diff_centroids"] = diff_data["diff_centroids"][step_no]
-
     # [pos, bbox exts]
     step_diff_data["diff_bbox"] = diff_data["diff_bbox"][step_no]
 
     return step_diff_data
 
+
+def get_centroid(points):
+    acc = [0.0, 0.0, 0.0]
+    for key, data in points:
+        acc[0] += float(data[0])
+        acc[1] += float(data[1])
+        acc[2] += float(data[2])
+    acc[0] = float(acc[0] / float(len(points)))
+    acc[1] = float(acc[1] / float(len(points)))
+    acc[2] = float(acc[2] / float(len(points)))
+    return acc
+
+
+def get_bbox(diff_entry):
+    mu = numpy.asarray([0.0, 0.0, 0.0], 'f')
+    cov_m = numpy.zeros((3, 3), 'f')
+
+    points = []
+    for key, data in diff_entry:
+        points.append(numpy.array(data, 'f'))
+
+    for p in points:
+        mu = mu + p
+    mu = mu * numpy.asarray([1.0 / float(len(points)), 1.0 / float(len(points)), 1.0 / float(len(points))])
+
+    cxx=0.0; cxy=0.0; cxz=0.0; cyy=0.0; cyz=0.0; czz=0.0
+
+    for p in points:
+        cxx += p[0] * p[0] - mu[0] * mu[0]
+        cxy += p[0] * p[1] - mu[0] * mu[1]
+        cxz += p[0] * p[2] - mu[0] * mu[2]
+        cyy += p[1] * p[1] - mu[1] * mu[1]
+        cyz += p[1] * p[2] - mu[1] * mu[2]
+        czz += p[2] * p[2] - mu[2] * mu[2]
+
+    cov_m[0,0] = cxx;   cov_m[0,1] = cxy;   cov_m[0,2] = cxz
+    cov_m[1,0] = cxy;   cov_m[1,1] = cyy;   cov_m[1,2] = cyz
+    cov_m[2,0] = cxz;   cov_m[2,1] = cyz;   cov_m[2,2] = czz
+
+    center, m_pos, m_ext, m_rot = build_from_covariance_matrix(cov_m, points)
+
+    vol = obb_volume(m_ext)
+    obb_points, bbox_pos, m_ext, r, u, f = get_bounding_box(m_rot, m_ext, m_pos)
+
+    return [obb_points, bbox_pos, m_ext, r, u, f]
+
+
+def build_from_covariance_matrix(cov_m, points):
+    eigval, eigvec = numpy.linalg.eig(cov_m)
+    m_rot = numpy.zeros((3, 3), 'f')
+
+    r = numpy.asarray([eigvec[0,0], eigvec[1,0], eigvec[2,0]])
+    u = numpy.asarray([eigvec[0,1], eigvec[1,1], eigvec[2,1]])
+    f = numpy.asarray([eigvec[0,2], eigvec[1,2], eigvec[2,2]])
+    r = normalize(r)
+    u = normalize(u)
+    f = normalize(f)
+
+    m_rot[0, 0] = r[0];     m_rot[0, 1]=u[0];   m_rot[0, 2] = f[0]
+    m_rot[1, 0] = r[1];     m_rot[1, 1]=u[1];   m_rot[1, 2] = f[1]
+    m_rot[2, 0] = r[2];     m_rot[2, 1]=u[2];   m_rot[2, 2] = f[2]
+
+    minim = numpy.asarray([1e10, 1e10, 1e10])
+    maxim = numpy.asarray([-1e10, -1e10, -1e10])
+
+    for p in points:
+        p_prime = numpy.asarray([numpy.dot(r, p), numpy.dot(u, p), numpy.dot(f, p)])
+        minim = numpy.minimum(minim, p_prime)
+        maxim = numpy.maximum(maxim, p_prime)
+
+    center = (maxim + minim) * 0.5
+    m_pos = numpy.asarray([numpy.dot(m_rot[0], center), numpy.dot(m_rot[1], center), numpy.dot(m_rot[2], center)])
+    m_ext = (maxim - minim) * 0.5
+
+    return center, m_pos, m_ext, m_rot
+
+
+def obb_volume(m_ext):
+    return 8 * m_ext[0] * m_ext[1] * m_ext[2]
+
+
+def get_bounding_box(m_rot, m_ext, m_pos):
+    r =  numpy.asarray([m_rot[0][0], m_rot[1][0], m_rot[2][0]])
+    u =  numpy.asarray([m_rot[0][1], m_rot[1][1], m_rot[2][1]])
+    f =  numpy.asarray([m_rot[0][2], m_rot[1][2], m_rot[2][2]])
+    p = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+         [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+    p[0] = m_pos - r * m_ext[0] - u * m_ext[1] - f * m_ext[2]
+    p[1] = m_pos + r * m_ext[0] - u * m_ext[1] - f * m_ext[2]
+    p[2] = m_pos + r * m_ext[0] - u * m_ext[1] + f * m_ext[2]
+    p[3] = m_pos - r * m_ext[0] - u * m_ext[1] + f * m_ext[2]
+    p[4] = m_pos - r * m_ext[0] + u * m_ext[1] - f * m_ext[2]
+    p[5] = m_pos + r * m_ext[0] + u * m_ext[1] - f * m_ext[2]
+    p[6] = m_pos + r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
+    p[7] = m_pos - r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
+    return [p,
+            [float(m_pos[0]), float(m_pos[1]), float(m_pos[2])],
+            [float(m_ext[0]), float(m_ext[1]), float(m_ext[2])],
+            [float(r[0]), float(r[1]), float(r[2])],
+            [float(u[0]), float(u[1]), float(u[2])],
+            [float(f[0]), float(f[1]), float(f[2])]]
+
+
+def normalize(v):
+    norm = numpy.linalg.norm(v)
+    if norm == 0:
+       return v
+    return v/norm
+
+
+'''
+=================================================================================================
+|                                        MAIN  METHODS                                          |
+=================================================================================================
+'''
 
 def generate_final_data(model_names):
     """
@@ -274,118 +387,7 @@ def brush_compressing(model_names):
         out.close()
 
 
-def get_centroid(points):
-    acc = [0.0, 0.0, 0.0]
-    for key, data in points:
-        acc[0] += float(data[0])
-        acc[1] += float(data[1])
-        acc[2] += float(data[2])
-    acc[0] = float(acc[0] / float(len(points)))
-    acc[1] = float(acc[1] / float(len(points)))
-    acc[2] = float(acc[2] / float(len(points)))
-    return acc
-
-
-def get_bbox(diff_entry):
-    mu = numpy.asarray([0.0, 0.0, 0.0], 'f')
-    cov_m = numpy.zeros((3, 3), 'f')
-
-    points = []
-    for key, data in diff_entry:
-        points.append(numpy.array(data, 'f'))
-
-    for p in points:
-        mu = mu + p
-    mu = mu * numpy.asarray([1.0 / float(len(points)), 1.0 / float(len(points)), 1.0 / float(len(points))])
-
-    cxx=0.0; cxy=0.0; cxz=0.0; cyy=0.0; cyz=0.0; czz=0.0
-
-    for p in points:
-        cxx += p[0] * p[0] - mu[0] * mu[0]
-        cxy += p[0] * p[1] - mu[0] * mu[1]
-        cxz += p[0] * p[2] - mu[0] * mu[2]
-        cyy += p[1] * p[1] - mu[1] * mu[1]
-        cyz += p[1] * p[2] - mu[1] * mu[2]
-        czz += p[2] * p[2] - mu[2] * mu[2]
-
-    cov_m[0,0] = cxx;   cov_m[0,1] = cxy;   cov_m[0,2] = cxz
-    cov_m[1,0] = cxy;   cov_m[1,1] = cyy;   cov_m[1,2] = cyz
-    cov_m[2,0] = cxz;   cov_m[2,1] = cyz;   cov_m[2,2] = czz
-
-    center, m_pos, m_ext, m_rot = build_from_covariance_matrix(cov_m, points)
-
-    vol = obb_volume(m_ext)
-    obb_points, bbox_pos, m_ext, r, u, f = get_bounding_box(m_rot, m_ext, m_pos)
-
-    return [obb_points, bbox_pos, m_ext, r, u, f]
-
-
-def build_from_covariance_matrix(cov_m, points):
-    eigval, eigvec = numpy.linalg.eig(cov_m)
-    m_rot = numpy.zeros((3, 3), 'f')
-
-    r = numpy.asarray([eigvec[0,0], eigvec[1,0], eigvec[2,0]])
-    u = numpy.asarray([eigvec[0,1], eigvec[1,1], eigvec[2,1]])
-    f = numpy.asarray([eigvec[0,2], eigvec[1,2], eigvec[2,2]])
-    r = normalize(r)
-    u = normalize(u)
-    f = normalize(f)
-
-    m_rot[0, 0] = r[0];     m_rot[0, 1]=u[0];   m_rot[0, 2] = f[0]
-    m_rot[1, 0] = r[1];     m_rot[1, 1]=u[1];   m_rot[1, 2] = f[1]
-    m_rot[2, 0] = r[2];     m_rot[2, 1]=u[2];   m_rot[2, 2] = f[2]
-
-    minim = numpy.asarray([1e10, 1e10, 1e10])
-    maxim = numpy.asarray([-1e10, -1e10, -1e10])
-
-    for p in points:
-        p_prime = numpy.asarray([numpy.dot(r, p), numpy.dot(u, p), numpy.dot(f, p)])
-        minim = numpy.minimum(minim, p_prime)
-        maxim = numpy.maximum(maxim, p_prime)
-
-    center = (maxim + minim) * 0.5
-    m_pos = numpy.asarray([numpy.dot(m_rot[0], center), numpy.dot(m_rot[1], center), numpy.dot(m_rot[2], center)])
-    m_ext = (maxim - minim) * 0.5
-
-    return center, m_pos, m_ext, m_rot
-
-
-def obb_volume(m_ext):
-    return 8 * m_ext[0] * m_ext[1] * m_ext[2]
-
-
-def get_bounding_box(m_rot, m_ext, m_pos):
-    r =  numpy.asarray([m_rot[0][0], m_rot[1][0], m_rot[2][0]])
-    u =  numpy.asarray([m_rot[0][1], m_rot[1][1], m_rot[2][1]])
-    f =  numpy.asarray([m_rot[0][2], m_rot[1][2], m_rot[2][2]])
-    p = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
-         [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
-    p[0] = m_pos - r * m_ext[0] - u * m_ext[1] - f * m_ext[2]
-    p[1] = m_pos + r * m_ext[0] - u * m_ext[1] - f * m_ext[2]
-    p[2] = m_pos + r * m_ext[0] - u * m_ext[1] + f * m_ext[2]
-    p[3] = m_pos - r * m_ext[0] - u * m_ext[1] + f * m_ext[2]
-    p[4] = m_pos - r * m_ext[0] + u * m_ext[1] - f * m_ext[2]
-    p[5] = m_pos + r * m_ext[0] + u * m_ext[1] - f * m_ext[2]
-    p[6] = m_pos + r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
-    p[7] = m_pos - r * m_ext[0] + u * m_ext[1] + f * m_ext[2]
-    return [p,
-            [float(m_pos[0]), float(m_pos[1]), float(m_pos[2])],
-            [float(m_ext[0]), float(m_ext[1]), float(m_ext[2])],
-            [float(r[0]), float(r[1]), float(r[2])],
-            [float(u[0]), float(u[1]), float(u[2])],
-            [float(f[0]), float(f[1]), float(f[2])]]
-
-
-def normalize(v):
-    norm = numpy.linalg.norm(v)
-    if norm == 0:
-       return v
-    return v/norm
-
-
-
 if __name__ == "__main__":
-
     models = [["elder", 3119], ["elf", 4307], ["engineer", 987],
               ["explorer", 1858], ["fighter", 1608], ["gargoyle", 1058],
               ["gorilla", 2719], ["monster", 967],
