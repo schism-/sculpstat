@@ -43,14 +43,22 @@ class BlendConverter(object):
                     bpy.data.objects[self.basemesh_name].modifiers["Multires"].levels = \
                         bpy.data.objects[self.basemesh_name].modifiers["Multires"].sculpt_levels
                 except KeyError:
-                    print('modifier not found')
+                    print('MULTIRES NOT FOUND. IS IT SUBD?')
+
+                try:
+                    if bpy.ops.object.mode_set.poll():
+                        bpy.ops.object.mode_set(mode='EDIT')
+                    bpy.ops.mesh.faces_shade_smooth()
+                except KeyError:
+                    print('UNABLE TO SHADE SMOOTH')
 
                 if self.mode == "obj":
                     bpy.ops.export_scene.obj(filepath= self.obj_files_path + "/" + file[1].split('.')[0] + ".obj",
                                              axis_forward='-Z',
                                              axis_up='Y',
                                              use_mesh_modifiers=True,
-                                             use_normals=False,
+                                             use_normals=True,
+                                             use_uvs=False,
                                              use_materials=False,
                                              keep_vertex_order=True)
                 else:
@@ -59,32 +67,37 @@ class BlendConverter(object):
                                             axis_forward='-Z',
                                             axis_up='Y',
                                             use_normals=False)
+                print()
+        print('---')
 
 
 if __name__ == "__main__":
     import time
-    '''
-        ["gargoyle2", "Cube"],
-        ["monster", "Cube"],
-        ["task02", "Cube"],
-        ["task06", "Basemesh_FullbodyMale"],
-        ["task02-alien", "Cube"],
-        ["elder", "Plane"],
-        ["elf", "Cube"],
-        ["explorer", "Cube"],
-        ["gorilla", "Cube"],
-        ["sage", "Bust"]
-        ["ogre", "Plane"]
-    '''
-    names = [["ogre", "Plane"]]
+
+    names = [["alien", "Cube"],
+             ["elder", "Plane"],
+             ["elf", "Cube"],
+             ["engineer", "Basemesh_FullbodyMale"],
+             ["explorer", "Cube"],
+             ["fighter", "Basemesh_FullbodyMale"],
+             ["gargoyle", "Cube"],
+             ["gorilla", "Cube"],
+             ["monster", "Cube"],
+             ["man", "bust"],
+             ["merman", "Cube"],
+             # ["monster", "Cube"],
+             # ["ogre", "Plane"],
+             ["sage", "Bust"]]
+
+    names = [["monster", "Cube"]]
 
     for model_name, basemesh in names:
         #blend_dir = "../blend_files/"
         #obj_dir = "../obj2_files/"
         blend_dir = "/Volumes/PART FAT/3ddata/"
-        obj_dir = "/Volumes/Part Mac/obj_no_normals_files/"
+        obj_dir = "/Volumes/Part Mac/obj_smooth_normals_files/"
 
         start = time.time()
-        bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 100000, basemesh, "obj")
+        bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 5000, basemesh, "obj")
         bc.convert_to_obj()
         print("Conversion took %f seconds" % (time.time() - start))
