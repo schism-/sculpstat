@@ -89,6 +89,7 @@ class mMesh:
         self.del_faces = None
         self.upd_faces = None
 
+
     def loadANNEngine(self):
         # Dimension of our vector space
         dimension = 3
@@ -97,9 +98,11 @@ class mMesh:
         # Create engine with pipeline configuration
         self.engine = nearpy.Engine(dimension, lshashes=[self.rbp])
 
+
     def loadVertices(self, verts):
         for index in range(len(verts)):
             self.engine.store_vector(verts[index], '%d' % index)
+
 
     def getNeighbours(self, query):
         N = self.engine.neighbours(query)
@@ -156,6 +159,7 @@ class mMesh:
                 continue
         return (vertices, faces, quads, tris, faces_n, normals)
 
+
     def computeNormal(self, temp):
         v0 = self.vertices[temp[0] - 1]
         v1 = self.vertices[temp[1] - 1]
@@ -183,6 +187,7 @@ class mMesh:
             normal = [0.0, 0.0, 0.0]
 
         return normal
+
 
     def loadOBJModelFromNumpy(self, numpy_path):
         self.__init__(True)
@@ -213,6 +218,7 @@ class mMesh:
         fSTM.close()
 
         print("Done")
+
 
     def loadOBJModel(self, path, loadBrushes):
 
@@ -296,6 +302,7 @@ class mMesh:
 
         print("Done")
 
+
     def read_diff(self, path):
         f = open(path, 'rb')
         data = pickle.load(f)
@@ -348,6 +355,7 @@ class mMesh:
 
         return [v_mod, q_mod, t_mod, v_add, q_add, t_add, v_del, q_del, t_del, f_mod, f_add, f_del, f_upd]
 
+
     def read_diff_set(self, path):
         f = open(path, 'rb')
         data = pickle.load(f)
@@ -365,6 +373,7 @@ class mMesh:
         f_no = data["faces_no"] if "faces_no" in data else []
 
         return [v_mod, v_add, v_no, n_mod, n_add, n_no, f_mod, f_add, f_no]
+
 
     def apply_diff(self, current_step, diff_path, reverse=False):
         print("\tApplying diff " + str(current_step))
@@ -557,15 +566,11 @@ class mMesh:
 
         return True
 
-    def apply_diff_set(self, current_step, diff_path, reverse=False):
-        print()
-        #print("Applying diff set " + str(current_step))
-        start = time.time()
+
+    def apply_diff_set(self, current_step, diff_path):
         self.mod_vertices, self.new_vertices, verts_no, \
         self.mod_normals, self.new_normals, normals_no, \
         self.mod_faces, self.new_faces, faces_no = self.read_diff_set(diff_path + "diff_" + str(current_step))
-
-        #print("Read diff took %f" % (time.time() - start))
 
         if len(self.mod_vertices) + len(self.new_vertices) +\
             len(self.mod_normals) + len(self.new_normals) +\
@@ -583,18 +588,14 @@ class mMesh:
         print("\t\tFaces stats: \t%d, \t\t%d, \t\t%d" % (len(self.mod_faces), len(self.new_faces), faces_no))
 
         #update vertices and faces list
-        start = time.time()
 
         # ==========================
         #     UPDATING VERTICES
         # ==========================
 
         if verts_no > len(self.vertices):
-            #self.vertices = self.vertices  + [None, ] * (verts_no - len(self.vertices))
             temp = numpy.zeros((verts_no  - len(self.vertices), 3), self.vertices.dtype)
             self.vertices = numpy.concatenate((self.vertices, temp), axis=0)
-        #elif verts_no < len(self.vertices):
-        #    self.vertices = self.vertices[:verts_no + 1]
 
         for v_m in self.mod_vertices:
             if v_m[2] == "t":
@@ -687,8 +688,6 @@ class mMesh:
             else:
                 self.quadCount += 1
 
-        #print("Update verts and faces took %f" % (time.time() - start))
-
         self.vertexCount = len(self.vertices)
         self.texCoordCount = len(self.vertices)
         self.normalQuadCount = self.quadCount * 4
@@ -705,13 +704,10 @@ class mMesh:
         tIndex = 0
         vIndex = 0
 
-        start_l = time.time()
         vCol = [0, ] * len(self.vertices)
         for idx in self.new_vertices:
             vCol[int(idx[0])] = 2
         idx_f = 0
-        #print("\tinitialize vcol %f" % (time.time() - start_l))
-        start_l = time.time()
 
         for f in self.faces:
             idx_v = 0
@@ -757,13 +753,8 @@ class mMesh:
                     qIndex += 1
                 idx_v += 1
             idx_f += 1
-        #print("\tupdate seq vectoris%f" % (time.time() - start_l))
-        #print("Total reset took %f" % (time.time() - start))
 
-        start = time.time()
         self.vertices = numpy.asarray(self.vertices, dtype=numpy.float32)
-        #print("Verts to numpy took %f" % (time.time() - start))
-
         return True
 
 if __name__ == "__main__":

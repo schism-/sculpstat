@@ -50,7 +50,7 @@ class BlendConverter(object):
                                              axis_forward='-Z',
                                              axis_up='Y',
                                              use_mesh_modifiers=True,
-                                             use_normals=True,
+                                             use_normals=False,
                                              use_materials=False,
                                              keep_vertex_order=True)
                 else:
@@ -62,22 +62,29 @@ class BlendConverter(object):
 
 
 if __name__ == "__main__":
-
+    import time
     '''
-        ["gargoyle2", "Cube"], ["monster", "Cube"],
-        ["task02", "Cube"], ["task06", "Basemesh_FullbodyMale"],
-        ["task02-alien", "Cube"], ["elder", "Plane"],
-        ["elf", "Cube"], ["explorer", "Cube"],
-        ["gorilla", "Cube"], ["sage", "Bust"]
+        ["gargoyle2", "Cube"],
+        ["monster", "Cube"],
+        ["task02", "Cube"],
+        ["task06", "Basemesh_FullbodyMale"],
+        ["task02-alien", "Cube"],
+        ["elder", "Plane"],
+        ["elf", "Cube"],
+        ["explorer", "Cube"],
+        ["gorilla", "Cube"],
+        ["sage", "Bust"]
+        ["ogre", "Plane"]
     '''
-    names = [["monster", "Cube"], ["ogre", "Cube"]]
+    names = [["ogre", "Plane"]]
 
     for model_name, basemesh in names:
         #blend_dir = "../blend_files/"
         #obj_dir = "../obj2_files/"
         blend_dir = "/Volumes/PART FAT/3ddata/"
-        obj_dir = "/Volumes/Part Mac/obj_true_files/"
+        obj_dir = "/Volumes/Part Mac/obj_no_normals_files/"
 
-        # arrivato a snap001607
-        bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 50, basemesh, "obj")
+        start = time.time()
+        bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 100000, basemesh, "obj")
         bc.convert_to_obj()
+        print("Conversion took %f seconds" % (time.time() - start))
