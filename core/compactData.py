@@ -6,6 +6,7 @@ import utility.common as common
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import numpy
+import scipy.stats as scs
 import os.path
 
 
@@ -44,6 +45,10 @@ def sanitize_brush_data(brush_data):
     else:
         if not brush_data["size"]:
             brush_data["size"] = None
+        else:
+            brush_data["size"] = [[brush_data["size"][0], brush_data["size"][1]]]
+        if not brush_data["pressure"]:
+            brush_data["pressure"] = None
         if not brush_data["paths"]:
             brush_data["paths"] = None
         if not brush_data["obboxes"]:
@@ -55,20 +60,34 @@ def sanitize_brush_data(brush_data):
             brush_data["obboxes"] = temp[:]
         if not brush_data["aabboxes"]:
             brush_data["aabboxes"] = None
+
+        del brush_data["aabboxes"]
+
         return brush_data
 
 def get_diff_data_step(diff_data, step_no):
     step_diff_data = {}
-
     step_diff_data["added_vertices"] = diff_data["added_vertices"][step_no]
     step_diff_data["deleted_vertices"] = diff_data["deleted_vertices"][step_no]
+    step_diff_data["added_normals"] = diff_data["added_normals"][step_no]
+    step_diff_data["deleted_normals"] = diff_data["deleted_normals"][step_no]
     step_diff_data["added_faces"] = diff_data["added_faces"][step_no]
     step_diff_data["deleted_faces"] = diff_data["deleted_faces"][step_no]
-    # list of [c_x, c_y, c_z]
-    step_diff_data["diff_centroids"] = diff_data["diff_centroids"][step_no]
-    # [pos, bbox exts]
-    step_diff_data["diff_bbox"] = diff_data["diff_bbox"][step_no]
 
+    step_diff_data["diff_added_centroids"] = diff_data["diff_added_centroids"][step_no]
+    step_diff_data["diff_added_bbox"] = diff_data["diff_added_bbox"][step_no]
+    step_diff_data["diff_deleted_centroids"] = diff_data["diff_deleted_centroids"][step_no]
+    step_diff_data["diff_deleted_bbox"] = diff_data["diff_deleted_bbox"][step_no]
+
+    step_diff_data["added_mean"] = diff_data["added_mean"][step_no]
+    step_diff_data["added_variance"] = diff_data["added_variance"][step_no]
+    step_diff_data["added_skewness"] = diff_data["added_skewness"][step_no]
+    step_diff_data["added_curtosis"] = diff_data["added_curtosis"][step_no]
+
+    step_diff_data["deleted_mean"] = diff_data["deleted_mean"][step_no]
+    step_diff_data["deleted_variance"] = diff_data["deleted_variance"][step_no]
+    step_diff_data["deleted_skewness"] = diff_data["deleted_skewness"][step_no]
+    step_diff_data["deleted_curtosis"] = diff_data["deleted_curtosis"][step_no]
     return step_diff_data
 
 
@@ -201,6 +220,14 @@ def generate_final_data(model_names):
                 "diff_added_bbox"
                 "diff_deleted_centroids"
                 "diff_deleted_bbox"
+                "added_mean"
+                "added_variance"
+                "added_skewness"
+                "added_curtosis"
+                "deleted_mean"
+                "deleted_variance"
+                "deleted_skewness"
+                "deleted_curtosis"
             }
 
             brush_data = {
@@ -209,15 +236,17 @@ def generate_final_data(model_names):
                 "mode"
                 "brush_number"
                 "paths"
+                "centroid"
                 "obboxes"
                 "aabboxes"
                 "lenghts"
+                "pressure"
             }
         }
     """
 
     for model_name in model_names:
-        print("Creating fina data for " + model_name)
+        print("Creating fina data for " + model_name[0])
 
         final_data = {}
         brush_data = common.load_json("../steps/" + model_name[0] + "/brush_data.json")
@@ -225,7 +254,7 @@ def generate_final_data(model_names):
 
         final_data[0] = {
             "step_number" : 0,
-            "valid" : brush_data[0]["valid"],
+            "valid" : brush_data['0']["valid"],
             "brush_data" : sanitize_brush_data(brush_data['0']),
             "diff_data" : null_diff_data()
         }
@@ -241,162 +270,103 @@ def generate_final_data(model_names):
         common.save_json(final_data, "../steps/" + model_name[0] + "/final_data.json", compressed=False)
 
 
-def diff_compressing(diff_root_path, diff_model_names):
-    for model_name in diff_model_names:
-        print("Compressing diff data for " + model_name,)
-        added_vertices = []
-        deleted_vertices = []
-        added_faces = []
-        deleted_faces = []
-        diff_centroids = []
-        diff_bbox = []
-        diff_added_centroids = []
-        diff_deleted_centroids = []
-        diff_added_bbox = []
-        diff_deleted_bbox = []
-
-        step_path = "../steps/" + model_name[0] + "/mesh_data.json"
-        mesh_data = common.load_json(step_path)
-
-        serialized = False
-        if os.path.isfile(diff_root_path + model_name[0] + "/step_1/serialized.txt"):
-            serialized = True
-            print("SERIALIZED")
-        else:
-            print("NOT SERIALIZED")
-
-        for diff_no in range(0, model_name[1]):
-            print(str(diff_no) + "/" + str(model_name[1]) + " ",)
-
-            if not serialized:
-                data_temp = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no))
-
-                if not data_temp["valid"]:
-                    data_c = {"valid":False}
-                else:
-                    data_c["valid"] = True
-                    data_c['new_verts'] = len(data_temp['new_verts'])
-                    data_c['verts_no'] = int(data_temp['verts_no'])
-                    data_c['new_faces'] = len(data_temp['new_faces'])
-                    data_c['faces_no'] = int(data_temp['faces_no'])
-                    data_av_c = data_temp["new_verts"]
-            else:
-                data_c = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/diff_head")
-                if data_c["valid"]:
-                    data_av_c = common.load_pickle(diff_root_path + model_name[0] + "/step_1/diff_" + str(diff_no) + "/new_verts")
-
-            if not data_c['valid']:
-                added_vertices.append(0)
-                deleted_vertices.append(0)
-                added_faces.append(0)
-                deleted_faces.append(0)
-                diff_bbox.append([])
-                diff_centroids.append([])
-            else:
-                added_vertices.append(data_c["new_verts"])
-                if data_c["new_verts"] - (int(data_c["verts_no"]) - int(mesh_data[str(diff_no-1)]["vertices_no"])) < 0:
-                    deleted_vertices.append(int(mesh_data[str(diff_no-1)]["vertices_no"]))
-                else:
-                    deleted_vertices.append(data_c["new_verts"] - (int(data_c["verts_no"]) - int(mesh_data[str(diff_no-1)]["vertices_no"])))
-
-                added_faces.append(data_c["new_faces"])
-                if data_c["new_faces"] - (int(data_c["faces_no"]) - int(mesh_data[str(diff_no-1)]["faces_no"])) < 0:
-                    deleted_faces.append(int(mesh_data[str(diff_no-1)]["faces_no"]))
-                else:
-                    deleted_faces.append(data_c["new_faces"] - (int(data_c["faces_no"]) - int(mesh_data[str(diff_no-1)]["faces_no"])))
-
-                if len(data_av_c) > 0:
-                    # list of [c_x, c_y, c_z]
-                    diff_centroids.append(get_centroid(data_av_c))
-                    # list of [pos, bbox exts]
-                    obb_points, bbox_pos, m_ext, r, u, f = get_bbox(data_av_c)
-                    diff_bbox.append([bbox_pos, m_ext])
-                else:
-                    diff_bbox.append([])
-                    diff_centroids.append([])
-
-        final_data = {}
-        final_data["added_vertices"] = added_vertices
-        final_data["deleted_vertices"] = deleted_vertices
-        final_data["added_faces"] = added_faces
-        final_data["deleted_faces"] = deleted_faces
-        final_data["diff_centroids"] = diff_centroids
-        final_data["diff_bbox"] = diff_bbox
-        common.save_json(final_data, "../steps/" + model_name[0] + "/diff_plot_data.json", compressed=False)
-
 def brush_compressing(model_names):
+    '''
+        brush_data = {
+                "valid"
+                "size"
+                "mode"
+                "brush_number"
+                "paths"
+                "obboxes"
+                "aabboxes"
+                "lenghts"
+                "pressure"
+            }
+    '''
+
     feature_vectors = {}
 
     for model_name in model_names:
-        brush_data = common.load_json("../steps/" + model_name + "/brush_data.json")
-        feature_vectors[model_name] = []
+        brush_data = common.load_json("../steps/" + model_name[0] + "/brush_data.json")
+        feature_vectors[model_name[0]] = []
         for step_idx in brush_data:
-            print("Model %s | Step %s" % (model_name, step_idx))
+            print("Model %s | Step %s" % (model_name[0], step_idx))
             data = brush_data[str(step_idx)]
             if data["valid"]:
                 sizes = float(data["size"][0])
                 unp_sizes = float(data["size"][1])
-                modes = int(data["mode"])
+                modes = data["mode"]
                 b_number = data["brush_number"]
+                path_lenghts = 0
                 for i in range(b_number + 1):
-                    path_points = data["paths"][i]
                     path_lenghts = float(data["lenghts"][i])
                     path_centroids = data["centroids"][i]
 
-                    obb_pts = data["obboxes"][i][0]
-                    obb_verts = [None, None, None]
-                    obb_verts[0] = numpy.asarray([obb_pts[0][0], obb_pts[0][1], obb_pts[0][2]])
-                    obb_verts[1] = numpy.asarray([obb_pts[1][0], obb_pts[1][1], obb_pts[1][2]])
-                    obb_verts[2] = numpy.asarray([obb_pts[2][0], obb_pts[2][1], obb_pts[2][2]])
-                    dist0 = numpy.linalg.norm(obb_verts[1] - obb_verts[0])
-                    dist1 = numpy.linalg.norm(obb_verts[2] - obb_verts[0])
-                    dist2 = numpy.linalg.norm(obb_verts[2] - obb_verts[1])
+                    obb_center = [None, None, None]
+                    obb_center[0] = data["obboxes"][i]["bbox_center"][0]
+                    obb_center[1] = data["obboxes"][i]["bbox_center"][1]
+                    obb_center[2] = data["obboxes"][i]["bbox_center"][2]
 
-                    obb_dimensions = [dist0, dist1, dist2]
-                    obb_points = obb_pts
-                    obb_volumes = float(data["obboxes"][i][1])
-
-                    aabb_pts = data["aabboxes"][i][0]
-                    aabb_verts = [None, None, None]
-                    aabb_verts[0] = numpy.asarray([aabb_pts[0][0], aabb_pts[0][1], aabb_pts[0][2]])
-                    aabb_verts[1] = numpy.asarray([aabb_pts[1][0], aabb_pts[1][1], aabb_pts[1][2]])
-                    aabb_verts[2] = numpy.asarray([aabb_pts[2][0], aabb_pts[2][1], aabb_pts[2][2]])
-                    dist0 = numpy.linalg.norm(aabb_verts[1] - aabb_verts[0])
-                    dist1 = numpy.linalg.norm(aabb_verts[2] - aabb_verts[0])
-                    dist2 = numpy.linalg.norm(aabb_verts[2] - aabb_verts[1])
-
-                    aabb_dimensions = [dist0, dist1, dist2]
-                    aabb_points = data["aabboxes"][i][0]
-                    aabb_volumes = float(data["aabboxes"][i][1])
+                    obb_dimensions = [None, None, None]
+                    obb_dimensions[0] = data["obboxes"][i]["bbox_ext"][0]
+                    obb_dimensions[1] = data["obboxes"][i]["bbox_ext"][1]
+                    obb_dimensions[2] = data["obboxes"][i]["bbox_ext"][2]
                     break
 
-                feature_vectors[model_name].append(
-                    [sizes, unp_sizes, modes, path_lenghts,
+                pressure_mean = data["pressure_mean"]
+                pressure_variance = data["pressure_variance"]
+                pressure_skewness = data["pressure_skewness"]
+                pressure_curtosis = data["pressure_curtosis"]
+
+                path_mean = data["path_mean"]
+                path_variance = data["path_variance"]
+                path_skewness = data["path_skewness"]
+                path_curtosis = data["path_curtosis"]
+
+                feature_vectors[model_name[0]].append(
+                    [sizes, unp_sizes, modes[0], path_lenghts,
                      path_centroids[0],path_centroids[1],path_centroids[2],
+                     obb_center[0], obb_center[1], obb_center[2],
                      obb_dimensions[0], obb_dimensions[1], obb_dimensions[2],
-                     aabb_dimensions[0], aabb_dimensions[1], aabb_dimensions[2], int(step_idx)]
+                     pressure_mean, pressure_variance, pressure_skewness, pressure_curtosis,
+                     path_mean, path_variance, path_skewness, path_curtosis,
+                     int(step_idx)]
                 )
 
-        common.save_json(feature_vectors[model_name], "../steps/" + model_name + "/feature_vector.json", compressed=True)
+        common.save_json(feature_vectors[model_name[0]], "../steps/" + model_name[0] + "/feature_vector.json", compressed=False)
 
-        out = open("../steps/" + model_name + "/feature_vector.csv", "w")
-        out.write('size,unp_size,mode,lenght,centroid_x,centroid_y,centroid_z,obb_dim_1,obb_dim_2,obb_dim_3,aabb_dim_1,aabb_dim_2,aabb_dim_3,step\n')
-        for line in feature_vectors[model_name]:
+        out = open("../steps/" + model_name[0] + "/feature_vector.csv", "w")
+        out.write('size,unp_size,mode,lenght,' + \
+                  'centroid_x,centroid_y,centroid_z,' + \
+                  'obb_cen_x,obb_cen_y,obb_cen_z,'+ \
+                  'obb_dim_x,obb_dim_y,obb_dim_z,'+ \
+                  'pressure_mean,pressure_variance,pressure_skewness,pressure_curtosis,'+ \
+                  'path_mean,path_variance,path_skewness,path_curtosis,'+ \
+                  'step\n')
+        for line in feature_vectors[model_name[0]]:
             l = ','.join([str(el) for el in line])
             out.write(l + '\n')
         out.close()
 
 
 if __name__ == "__main__":
-    models = [["elder", 3119], ["elf", 4307], ["engineer", 987],
-              ["explorer", 1858], ["fighter", 1608], ["gargoyle", 1058],
-              ["gorilla", 2719], ["monster", 967],
-              ["ogre", 1720], ["sage", 2136]]
-
-    # ["merman", 1003],
+    models = [
+        ["alien",    2216],
+        ["elder",    3119],
+        ["elf",      4307],
+        ["engineer",  987],
+        ["explorer", 1858],
+        ["fighter",  1608],
+        ["gargoyle", 1058],
+        ["gorilla",  2719],
+        ["man",      1580],
+        ["merman",   2619],
+        ["monster", 967],
+        ["ogre", 1720],
+        ["sage",     2136]
+    ]
 
     # diff_compressing("/Volumes/PART FAT/diff_new/", models)
-    # brush_compressing(models)
-
-    models = [["monster", 967]]
-    generate_final_data(models)
+    brush_compressing(models)
+    # generate_final_data(models)

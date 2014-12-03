@@ -50,8 +50,31 @@ class MeshData(object):
 
 
 if __name__ == "__main__":
-    model_names = ["gargoyle2", "gorilla", "monster", "sage", "ogre", "alien", "merman", "man", "engineer"] # "elder", "elf", "explorer", "fighter",
+    '''
+        Input data is in the form
+            ["alien", 1024, 2216, 1]
+            [model name, start step, end step, stride]
+            - end step might at maximum be (number of snaps - 1)
+
+        ["alien",       0,      2216,   1],
+        ["elder",       0,      3119,   1],
+        ["elf",         0,      4307,   1],
+        ["engineer",    0,       987,   1],
+        ["explorer",    0,      1858,   1],
+        ["fighter",     0,      1608,   1],
+        ["gargoyle",    0,      1058,   1],
+        ["gorilla",     0,      2719,   1],
+        ["man",         0,      1580,   1],
+        ["merman",      0,      2619,   1],
+        ["monster",     0,       967,   1],
+        ["ogre",        0,      1720,   1],
+        ["sage",        0,      2136,   1],
+    '''
+
+    model_names = [
+        "elf"
+    ]
 
     for mn in model_names:
-        md = MeshData(mn, obj_path="/Volumes/Part Mac/obj2_files/")
+        md = MeshData(mn, obj_path="/Volumes/Part Mac/obj_smooth_normals_files/")
         mesh_data = md.extract_data()

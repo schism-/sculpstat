@@ -55,3 +55,19 @@ def save_pickle(file_path, data):
     fh = open(file_path, "wb+")
     pickle.dump(data, fh)
     fh.close()
+
+
+def load_obj(file_path):
+    fh = open(file_path, 'r')
+    f_v_lines = []
+    f_n_lines = []
+    f_f_lines = []
+    for line in fh:
+        if line.startswith('v '):
+            f_v_lines.append(line)
+        elif line.startswith('vn '):
+            f_n_lines.append(line)
+        elif line.startswith('f '):
+            f_f_lines.append(line)
+    fh.close()
+    return f_v_lines, f_n_lines, f_f_lines

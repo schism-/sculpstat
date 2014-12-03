@@ -6,6 +6,7 @@ import json
 import pickle
 import numpy
 import numpy.linalg
+import scipy.stats as scs
 from utility import common
 
 class BrushData(object):
@@ -320,7 +321,7 @@ class BrushData(object):
                 if "op_name" in op and op["op_name"] == "bpy.ops.sculpt.brush_stroke":
                     stroke_op.append(op)
         except KeyError:
-            print("Step %d not found " % step_no)
+            print("No brush found in step %d " % step_no)
 
         b_size = self.load_brush_size(step_no)
         b_mode = self.load_brush_mode(stroke_op)
@@ -376,16 +377,47 @@ class BrushData(object):
 
             return_data["pressure"] = b_pressure
 
+            temp = numpy.mean(b_pressure, axis=1)
+            return_data["pressure_mean"] = temp[0]
+            temp = numpy.var(b_pressure, axis=1)
+            return_data["pressure_variance"] = temp[0]
+            temp = scs.skew(b_pressure, axis=1)
+            return_data["pressure_skewness"] = temp[0]
+            temp = scs.kurtosis(b_pressure, axis=1)
+            return_data["pressure_curtosis"] = temp[0]
+
+            temp = numpy.mean(list_b_paths[0], axis=1)
+            return_data["path_mean"] = temp[0]
+            temp = numpy.var(list_b_paths[0], axis=1)
+            return_data["path_variance"] = temp[0]
+            temp = scs.skew(list_b_paths[0], axis=1)
+            return_data["path_skewness"] = temp[0]
+            temp = scs.kurtosis(list_b_paths[0], axis=1)
+            return_data["path_curtosis"] = temp[0]
+
+
         return return_data
 
 
 if __name__ == "__main__":
-    models = [["elder", 3119], ["elf", 4307], ["engineer", 987],
-              ["explorer", 1858], ["fighter", 1608], ["gargoyle", 1058],
-              ["gorilla", 2719], ["monster", 967],
-              ["ogre", 1720], ["sage", 2136]]
+    models = [
+        ["alien",    2216],
+        ["elder",    3119],
+        ["elf",      4307],
+        ["engineer",  987],
+        ["explorer", 1858],
+        ["fighter",  1608],
+        ["gargoyle", 1058],
+        ["gorilla",  2719],
+        ["man",      1580],
+        ["merman",   2619],
+        ["sage",     2136]
+    ]
 
-    models = [["monster", 967]]
+    models = [
+        ["monster", 967],
+        ["ogre", 1720]
+    ]
 
     for model_name, max_step in models:
         bd = BrushData(model_name, max_step)

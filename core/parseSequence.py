@@ -50,20 +50,33 @@ def camera_position(matrix):
 
 
 def parse_single_step_to_json(line_data):
-    no_parse = ['bpy.ops.sculpt.dynamic_topology_toggle', 'bpy.ops.view3d.view_persportho',
-                'bpy.ops.object.editmode_toggle', 'bpy.ops.view3d.smoothview',
-                'bpy.ops.screen.actionzone', 'bpy.ops.view3d.view_all',
-                'interface', 'bpy.ops.view3d.move',
-                'bpy.ops.file.execute', 'bpy.ops.sculpt.sculptmode_toggle',
-                'bpy.ops.file.select', 'bpy.ops.view3d.properties',
-                'bpy.ops.view3d.layers', 'bpy.ops.screen.region_scale',
-                'bpy.ops.view3d.viewnumpad', 'bpy.ops.view3d.view_orbit',
-                'bpy.ops.wm.save_as_mainfile', 'bpy.ops.file.highlight',
-                'bpy.ops.ed.undo', 'bpy.ops.file.select_bookmark',
-                'bpy.ops.view3d.rotate', 'bpy.ops.view3d.cursor3d',
-                'bpy.ops.view2d.pan', 'initial',
-                'bpy.ops.object.mode_set', 'bpy.ops.paint.mask_flood_fill',
-                'bpy.ops.view3d.zoom']
+    no_parse = ['initial',
+                'interface',
+                'bpy.ops.ed.undo',
+                'bpy.ops.file.execute',
+                'bpy.ops.file.highlight',
+                'bpy.ops.file.select',
+                'bpy.ops.file.select_bookmark',
+                'bpy.ops.object.editmode_toggle',
+                'bpy.ops.object.mode_set',
+                'bpy.ops.paint.mask_flood_fill',
+                'bpy.ops.screen.actionzone',
+                'bpy.ops.screen.region_scale',
+                'bpy.ops.sculpt.dynamic_topology_toggle',
+                'bpy.ops.sculpt.sculptmode_toggle',
+                'bpy.ops.view2d.pan',
+                'bpy.ops.view3d.cursor3d',
+                'bpy.ops.view3d.smoothview',
+                'bpy.ops.view3d.layers',
+                'bpy.ops.view3d.move',
+                'bpy.ops.view3d.properties',
+                'bpy.ops.view3d.rotate',
+                'bpy.ops.view3d.viewnumpad',
+                'bpy.ops.view3d.view_all',
+                'bpy.ops.view3d.view_orbit',
+                'bpy.ops.view3d.view_persportho',
+                'bpy.ops.view3d.zoom',
+                'bpy.ops.wm.save_as_mainfile']
 
     parse = ['bpy.ops.sculpt.brush_stroke',
              'bpy.ops.wm.radial_control',
@@ -199,9 +212,21 @@ def cluster_data(filtered_data, steps):
 
 
 if __name__ == "__main__":
-    models = ["elder", "elf", "engineer", "explorer", "fighter", "gorilla", "sage"]
 
-    models = ["monster"]
+    models = [
+        "alien",
+        "elder",
+        "elf",
+        "engineer",
+        "explorer",
+        "fighter",
+        "gargoyle",
+        "gorilla",
+        "man",
+        "merman",
+        "monster",
+        "ogre",
+        "sage"]
 
     for model_name in models:
         steps_files_path = "../steps/" + model_name + "/steps.txt"
@@ -213,13 +238,12 @@ if __name__ == "__main__":
         print("Took %f seconds" % (end - start))
 
         filtered_data = filter_data(final_data)
-        # clustered_data = cluster_data(filtered_data, steps)
 
+        # clustered_data = cluster_data(filtered_data, steps)
         #for step in clustered_data:
         #    print(step)
         #    for op in clustered_data[step]:
         #        print(str(op)[:100])
-
         # out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
 
         out = open("../steps/" + model_name + "/steps.json", "w")

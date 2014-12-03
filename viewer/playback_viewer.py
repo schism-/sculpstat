@@ -64,15 +64,18 @@ class Viewer(object):
             self.diff_path = self.diff_root + self.model_name + "/step_" + str(steps) + "/"
             self.step_path = self.steps_root + self.model_name + "/steps_clust" + str(steps) + ".json"
         else:
-            self.diff_path = self.diff_root + self.model_name + "/"
+            self.diff_path = self.diff_root + self.model_name  + "/step_1/"
             self.step_path = self.steps_root + self.model_name + "/steps.json"
 
-        bs_file = open(self.steps_root + self.model_name + "/b_size", "rb")
-        self.brushes_size = pickle.loads(bs_file.read())
-        bs_file.close()
+
+        f = open(self.steps_root + self.model_name + "/brush_data.json", 'r')
+        self.brushes = json.load(f)
+        f.close()
+
 
         f = open(self.step_path, 'r')
         self.steps = json.load(f)
+        f.close()
 
         self.timer = None
 
@@ -376,7 +379,10 @@ class Viewer(object):
         glColor4f(0.7, 0.0, 0.0, 0.20)
         for p in [el for idx, el in enumerate(path) if idx % 10 == 0]:
             glTranslate(p[0], p[1], p[2])
-            glutSolidSphere(float(self.brushes_size[self.current_step][1]), 30, 30)
+            try:
+                glutSolidSphere(float(self.brushes[str(self.current_step)]["size"][1]), 30, 30)
+            except KeyError:
+                print("..")
             glTranslate(-p[0], -p[1], -p[2])
         glColor4f(0.0, 0.0, 0.0, 1.0)
         glPopMatrix()
@@ -397,11 +403,11 @@ class Viewer(object):
 
 if __name__ == "__main__":
 
-    obj_root = "/Volumes/Part Mac/obj2_files/"
+    obj_root = "/Volumes/Part Mac/obj_smooth_normals_files/"
     blend_root = "/Volumes/PART FAT/3ddata/"
-    diff_root = "/Volumes/PART FAT/diff_completi/"
+    diff_root = "/Volumes/PART FAT/diff_new/"
 
-    v = Viewer("monster", 0, 1, obj_root, blend_root, diff_root)
+    v = Viewer("elf", 0, None, obj_root, blend_root, diff_root)
 
     if True:
         v.mainLoop()

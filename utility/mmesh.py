@@ -292,24 +292,24 @@ class mMesh:
                 data["valid"] = True
                 data["new_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_verts")
                 data["mod_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_verts")
-                data["del_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_verts")
+                #data["del_verts"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_verts")
                 data["verts_no"] = diff_head["verts_no"]
 
                 data["new_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_normals")
                 data["mod_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_normals")
-                data["del_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_normals")
+                #data["del_normals"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_normals")
                 data["normals_no"] = diff_head["normals_no"]
 
                 data["new_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/new_faces")
                 data["mod_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/mod_faces")
-                data["del_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_faces")
+                #data["del_faces"] = common.load_pickle(path + "diff_" + str(step_no)  + "/del_faces")
                 data["faces_no"] = diff_head["faces_no"]
             else:
                 data = {}
                 data["valid"] = False
         else:
             print("NOT SERIALIZED")
-            f = open(path + "/diff_" + str(step_no), 'rb')
+            f = open(path + "diff_" + str(step_no), 'rb')
             data = pickle.load(f)
 
         v_mod = data["mod_verts"] if "mod_verts" in data else []

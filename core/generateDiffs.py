@@ -7,7 +7,8 @@ import time
 import pickle
 import os.path
 import numpy as np
-import common
+
+from utility import common
 
 class DiffEntry(object):
     def __init__(self, key, data, set_name):
@@ -342,13 +343,19 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
                     diff_head["valid"] = True
                     diff_head["mod_verts"] = len(diff_mod_verts)
                     diff_head["new_verts"] = len(diff_new_verts)
+                    diff_head["del_verts"] = len(diff_new_verts)
                     diff_head["verts_no"] = verts_no
+
                     diff_head["mod_normals"] = len(diff_mod_normals)
                     diff_head["new_normals"] = len(diff_new_normals)
+                    diff_head["del_normals"] = len(diff_new_normals)
                     diff_head["normals_no"] = normals_no
+
                     diff_head["mod_faces"] = len(diff_mod_faces)
                     diff_head["new_faces"] = len(diff_new_faces)
+                    diff_head["del_faces"] = len(diff_del_faces)
                     diff_head["faces_no"] = faces_no
+
                     pickle.dump(diff_head, fh)
 
                     if is_diff_vertices:
@@ -373,6 +380,62 @@ def generate_diff(models, obj_path, diff_path, serialize=False):
 
             print("SAVED DIFF " + str(j) + " for " + name)
             print("=====================================================")
+
+def update_diff_head(models, diff_path, obj_path):
+    for model in models:
+        print("updating " + model[0])
+        for step in range(model[2]):
+            print("step" + str(step))
+            diff_files_path = diff_path + model[0] + "/step_1"
+
+            head = common.load_pickle(diff_files_path + "/diff_" + str(step) + "/diff_head")
+            if head["valid"]:
+                new_v = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/new_verts")
+                mod_v = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/mod_verts")
+                del_v = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/del_verts")
+
+                new_n = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/new_normals")
+                mod_n = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/mod_normals")
+                del_n = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/del_normals")
+
+
+                new_f = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/new_faces")
+                mod_f = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/mod_faces")
+                del_f = common.load_pickle(diff_files_path + "/diff_" + str(step)  + "/del_faces")
+
+                v_lines, n_lines,  f_lines = common.load_obj(obj_path + model[0] + "/snap" + str(step + 1).zfill(6) + ".obj")
+
+                head["new_verts"] = len(new_v)
+                head["mod_verts"] = len(mod_v)
+                head["del_verts"] = len(del_v)
+                head["verts_no"] = len(v_lines)
+
+                head["new_normals"] = len(new_n)
+                head["mod_normals"] = len(mod_n)
+                head["del_normals"] = len(del_n)
+                head["normals_no"] = len(n_lines)
+
+                head["new_faces"] = len(new_f)
+                head["mod_faces"] = len(mod_f)
+                head["del_faces"] = len(del_f)
+                head["faces_no"] = len(f_lines)
+            else:
+                head["new_verts"] = 0
+                head["mod_verts"] = 0
+                head["del_verts"] = 0
+                head["verts_no"] = 0
+
+                head["new_normals"] = 0
+                head["mod_normals"] = 0
+                head["del_normals"] = 0
+                head["normals_no"] = 0
+
+                head["new_faces"] = 0
+                head["mod_faces"] = 0
+                head["del_faces"] = 0
+                head["faces_no"] = 0
+
+            common.save_pickle(diff_files_path + "/diff_" + str(step) + "/diff_head", head)
 
 
 def generate_deleted_elements(models, obj_path, diff_path):
@@ -443,30 +506,32 @@ if __name__ == "__main__":
             [model name, start step, end step, stride]
             - end step might at maximum be (number of snaps - 1)
 
-        ["alien",       0,      1000,   1],
-        ["elder",       0,      3119,   1],
-        ["elf",         0,      4307,   1],
-        ["engineer",    0,       987,   1],
-        ["explorer",    0,      1858,   1],
-        ["fighter",     0,      1608,   1],
-        ["gargoyle",    0,      1058,   1],
-        ["gorilla",     0,      2719,   1],
-        ["man",         0,      1580,   1],
-        ["merman",      0,      2619,   1],
-        ["monster",     0,       967,   1],
-        ["ogre",        0,      1720,   1],
-        ["sage",        0,      2136,   1],
+        ["alien",       0,      1000,   1,    "a"],
+        ["elder",       0,      3119,   1,    "a"],
+        ["elf",         0,      4307,   1,    "a"],
+        ["engineer",    0,       987,   1,    "a"],
+        ["explorer",    0,      1858,   1,    "a"],
+        ["fighter",     0,      1608,   1,    "a"],
+        ["gargoyle",    0,      1058,   1,    "a"],
+        ["gorilla",     0,      2719,   1,    "a"],
+        ["man",         0,      1580,   1,    "a"],
+        ["merman",      0,      2619,   1,    "a"],
+        ["monster",     0,       967,   1,    "a"],
+        ["ogre",        0,      1720,   1,    "a"],
+        ["sage",        0,      2136,   1,    "a"],
     '''
 
-    models = [["monster",     0,       967,   1,    "a"]]
+    models = [["elf",       0,      4307,   1,    "a"]]
+
 
     obj_files_path = "/Volumes/Part Mac/obj_smooth_normals_files/"
     diff_files_path = "/Volumes/PART FAT/diff_completi/"
+    #diff_files_path = "/Users/christian/Desktop/Ph.D./sculptAnalysis/diff_new/"
+
 
     start = time.time()
+    # update_diff_head(models, diff_files_path, obj_files_path)
+
     generate_diff(models, obj_files_path, diff_files_path, serialize=True)
+
     print("Diff generation took %f " % (time.time() - start))
-
-
-    #models = [["monster", 0, 50, 1, False]]
-    #generate_deleted_elements(models, obj_files_path, diff_files_path)
