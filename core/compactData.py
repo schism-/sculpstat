@@ -43,23 +43,22 @@ def sanitize_brush_data(brush_data):
     if not brush_data["valid"]:
         return null_brush_data()
     else:
-        if not brush_data["size"]:
-            brush_data["size"] = None
-        else:
+        labels = ["size", "mode", "brush_number", "paths",
+                  "obboxes", "aabboxes", "centroids", "lenghts",
+                  "pressure", "pressure_mean", "pressure_variance", "pressure_skewness", "pressure_curtosis",
+                  "path_mean", "path_variance", "path_skewness", "path_curtosis"]
+        for l in labels:
+            if not brush_data[l]:
+                brush_data[l] = None
+
+        if brush_data["size"] is not None:
             brush_data["size"] = [[brush_data["size"][0], brush_data["size"][1]]]
-        if not brush_data["pressure"]:
-            brush_data["pressure"] = None
-        if not brush_data["paths"]:
-            brush_data["paths"] = None
-        if not brush_data["obboxes"]:
-            brush_data["obboxes"] = None
-        else:
+
+        if brush_data["obboxes"] is not None:
             temp = []
             for bb in brush_data["obboxes"]:
                 temp.append([bb["bbox_center"], bb["bbox_ext"]])
             brush_data["obboxes"] = temp[:]
-        if not brush_data["aabboxes"]:
-            brush_data["aabboxes"] = None
 
         del brush_data["aabboxes"]
 
@@ -282,6 +281,8 @@ def brush_compressing(model_names):
                 "aabboxes"
                 "lenghts"
                 "pressure"
+                "pressure stats"
+                "path stats"
             }
     '''
 
@@ -367,6 +368,12 @@ if __name__ == "__main__":
         ["sage",     2136]
     ]
 
+    models = [
+        ["ogre", 1720],
+        ["elder",    3119],
+        ["engineer",  987],
+    ]
+
     # diff_compressing("/Volumes/PART FAT/diff_new/", models)
-    brush_compressing(models)
-    # generate_final_data(models)
+    # brush_compressing(models)
+    generate_final_data(models)
