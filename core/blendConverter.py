@@ -85,16 +85,15 @@ if __name__ == "__main__":
              ["monster", "Cube"],
              ["man", "bust"],
              ["merman", "Cube"],
-             # ["monster", "Cube"],
-             # ["ogre", "Plane"],
+             ["monster", "Cube"],
+             ["ogre", "Plane"],
              ["sage", "Bust"]]
 
     names = [["fighter", "Basemesh_FullbodyMale"]] # snap001264
 
-    names = [["alien", "Cube"],
-             ["elder", "Plane"],
-             ["elf", "Cube"],
-             ["engineer", "Basemesh_FullbodyMale"]]
+    names = [["explorer", "Cube"],
+             ["fighter", "Basemesh_FullbodyMale"],
+             ["gargoyle", "Cube"]]
 
     for model_name, basemesh in names:
         #blend_dir = "../blend_files/"

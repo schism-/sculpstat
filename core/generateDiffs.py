@@ -521,7 +521,9 @@ if __name__ == "__main__":
         ["sage",        0,      2136,   1,    "a"],
     '''
 
-    models = [["elf",       0,      4307,   1,    "a"]]
+    models = [  ["explorer",    0,      1858,   1,    "a"],
+                ["fighter",     0,      1608,   1,    "a"],
+                ["gargoyle",    0,      1058,   1,    "a"]]
 
 
     obj_files_path = "/Volumes/Part Mac/obj_smooth_normals_files/"

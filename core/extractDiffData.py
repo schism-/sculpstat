@@ -319,8 +319,9 @@ if __name__ == "__main__":
     ]
 
     models = [
-        ["elder",       3119],
-        ["engineer",     987],
+        ["explorer",    1858],
+        ["fighter",     1608],
+        ["gargoyle",    1058]
     ]
     diff_root = "/Volumes/PART FAT/diff_completi/"
 

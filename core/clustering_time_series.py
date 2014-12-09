@@ -32,13 +32,13 @@ def plot_clustering_scatter(X_red, labels, raw_data, title=None, force_idx=(0,1,
         plt.title(title, size=17)
 
 # Loading brush data
-model_name = "sage"
+model_name = "monster"
 json_array = common.load_json("../steps/" + model_name + "/feature_vector.json")
 
 modes = {}
 for idx_l in range(len(json_array)):
     for idx_e in range(len(json_array[idx_l])):
-        if idx_e not in [2, 21]:
+        if idx_e != 2:
             json_array[idx_l][idx_e] = float(json_array[idx_l][idx_e])
         elif idx_e == 2:
             if json_array[idx_l][idx_e] in modes:
@@ -47,8 +47,6 @@ for idx_l in range(len(json_array)):
                 print("Adding %d for %s" % (len(modes), json_array[idx_l][idx_e]))
                 modes[json_array[idx_l][idx_e]] = len(modes)
                 json_array[idx_l][idx_e] = modes[json_array[idx_l][idx_e]]
-        else:
-            del json_array[idx_l][idx_e]
 
 
 labels_to_idx = {
@@ -77,18 +75,22 @@ labels_to_idx = {
 }
 
 '''
-    "size", "unp_size", "mode", "lenght"
-    "centroid_x", "centroid_y", "centroid_z"
-    "obb_cen_x", "obb_cen_y", "obb_cen_z"
-    "obb_dim_x", "obb_dim_y", "obb_dim_z"
-    "pressure_mean", "pressure_variance", "pressure_skewness", "pressure_curtosis"
-    "path_mean", "path_variance", "path_skewness", "path_curtosis"
-    "step
+    "size", "unp_size", "mode", "lenght",
+    "centroid_x", "centroid_y", "centroid_z",
+    "obb_cen_x", "obb_cen_y", "obb_cen_z",
+    "obb_dim_x", "obb_dim_y", "obb_dim_z",
+    "pressure_mean", "pressure_variance", "pressure_skewness", "pressure_curtosis",
+    "path_mean", "path_variance", "path_skewness", "path_curtosis",
+    "step"
 '''
 
-to_del = ["centroid_x", "centroid_y", "centroid_z",
-          "obb_cen_x", "obb_cen_x", "obb_cen_x",
-          "step"]
+to_del = [  "unp_size", "lenght",
+            "centroid_x", "centroid_y", "centroid_z",
+            "obb_cen_x", "obb_cen_y", "obb_cen_z",
+            "obb_dim_x", "obb_dim_y", "obb_dim_z",
+            "pressure_mean", "pressure_variance", "pressure_skewness", "pressure_curtosis",
+            "path_mean", "path_variance", "path_skewness", "path_curtosis",
+            "step"]
 
 centroid_pos = np.array(json_array, dtype='f')[:,7:10]
 

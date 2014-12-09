@@ -369,9 +369,9 @@ if __name__ == "__main__":
     ]
 
     models = [
-        ["ogre", 1720],
-        ["elder",    3119],
-        ["engineer",  987],
+        ["explorer", 1858],
+        ["fighter",  1608],
+        ["gargoyle", 1058]
     ]
 
     # diff_compressing("/Volumes/PART FAT/diff_new/", models)

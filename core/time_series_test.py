@@ -4,6 +4,8 @@ from time import time
 
 import numpy as np
 
+import os.path
+
 from matplotlib import pyplot as plt
 from matplotlib import mlab as mlab
 from mpl_toolkits.mplot3d import Axes3D
@@ -93,6 +95,18 @@ for attr_name in ["lenghts", "size", "unp_size", "centroid_dist"]:
     plt.psd(attr_data, NFFT=256, Fs=2, detrend=mlab.detrend_none,
             window=mlab.window_hanning, noverlap=0, pad_to=None,
             sides='default', scale_by_freq=None)
+    plt.tight_layout()
+    #----------------------------------------------------------------------
+    #                             saving image
+    #----------------------------------------------------------------------
+    root_images = "../images/" + model_name + "/"
+    if not os.path.exists(root_images):
+        os.makedirs(root_images)
+    file_name = "d_clust"
+    file_name += "basic_"
+    file_name += attr_name + ".pdf"
+    plt.savefig(root_images + file_name)
+
 
 lenght_data, _ = filter_brush_attribute(json_array, "lenghts", False)
 
@@ -109,7 +123,16 @@ for stat1, lab1 in [(lenght_data, "lenght"), (size_data, "size"), (unp_size_data
         plt.plot(ccf)
         plt.title("Cross-correlation for %s and %s" % (lab1, lab2))
         k += 1
-
 plt.tight_layout()
+#----------------------------------------------------------------------
+#                             saving image
+#----------------------------------------------------------------------
+root_images = "../images/" + model_name + "/"
+if not os.path.exists(root_images):
+    os.makedirs(root_images)
+file_name = "d_clust"
+file_name += "crosscorr_.pdf"
+plt.savefig(root_images + file_name)
+
 plt.show()
 
