@@ -72,7 +72,9 @@ if __name__ == "__main__":
     '''
 
     model_names = [
-        "elf"
+        "explorer",
+        "fighter",
+        "gargoyle",
     ]
 
     for mn in model_names:
