@@ -1,8 +1,8 @@
 __author__ = 'christian'
 
 
-from os import listdir
-from os.path import isfile, join
+from os import listdir, makedirs
+from os.path import isfile, join, exists
 import json
 import pickle
 
@@ -29,6 +29,9 @@ def get_files_from_directory(dir_path, filters=[], start_with=None):
 
     return onlyfiles
 
+def make_dirs(path):
+    if not exists(path):
+        makedirs(path)
 
 def load_json(file_path):
     f = open(file_path, 'r')

@@ -372,7 +372,7 @@ def distance_compressing(model_name, single_file=False):
         common.save_json(distances, "../steps/" + model_name[0] + "/distance_data.json", compressed=False)
 
 
-def brush_compressing(model_names):
+def brush_flattening(model_names):
     '''
         Saves a flattened version of the brush data (for Weka analysis and such)
     '''
@@ -441,8 +441,38 @@ def brush_compressing(model_names):
             out.write(l + '\n')
         out.close()
 
+def final_data_flattening(model_name):
+    '''
+        Saves a flattened version of the brush data, duplicating the data for each point of the polyline.
+    '''
+    final_data = common.load_json("/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data.json")
+
+    flattened_data = []
+    print("Flattening model %s" % model_name[0])
+    for step in final_data:
+        print("%s / %d" % (step, len(final_data) - 1), )
+        step_data = final_data[step]["brush_data"]
+        if step_data["valid"]:
+            for idx, point in enumerate(step_data["paths"][0]):
+                single_data = {
+                    "step": int(step),
+                    "projected_size": step_data["size"][0][0],
+                    "unprojected_size": step_data["size"][0][1],
+                    "position": point,
+                    "pressure": step_data["pressure"][0][idx],
+                    "mode": step_data["mode"][0],
+                }
+                flattened_data.append(single_data)
+
+    save_path = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/flattened/" + model_name[0] + "/"
+    common.make_dirs(save_path)
+    common.save_json(flattened_data,
+                     save_path + "flattened_data.json",
+                     compressed=False)
+
 
 if __name__ == "__main__":
+    '''
     models = [
         ["alien",    2216],
         ["elder",    3119],
@@ -458,10 +488,28 @@ if __name__ == "__main__":
         ["ogre", 1720],
         ["sage",     2136]
     ]
+    '''
 
-    # brush_compressing(models)
+    models = [
+        ["elder",    3119],
+        ["engineer",  987],
+        ["explorer", 1858],
+        ["fighter",  1608],
+        ["gargoyle", 1058],
+        ["gorilla",  2719],
+        ["man",      1580],
+        ["merman",   2619],
+        ["monster", 967],
+        ["ogre", 1720],
+        ["sage",     2136]
+    ]
 
-    generate_final_data(models)
+    # brush_flattening(models)
+
+    #generate_final_data(models)
 
     #for model_name in models:
     #    distance_compressing(model_name, False)
+
+    for model_name in models:
+        final_data_flattening(model_name)
