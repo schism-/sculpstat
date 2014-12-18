@@ -125,9 +125,7 @@ models = [
 ]
 '''
 
-models = [  ["elf",         4307],
-            ["engineer",     987],
-            ["explorer",    1858]] #684
+models = [["fighter",     1608]] #684
 
 start = time.time()
 for model_name, max_step in models:

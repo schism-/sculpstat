@@ -319,11 +319,10 @@ if __name__ == "__main__":
     ]
 
     models = [
-        ["explorer",    1858],
-        ["fighter",     1608],
-        ["gargoyle",    1058]
+        ["sage",        2136]
     ]
-    diff_root = "/Volumes/PART FAT/diff_completi/"
+    #diff_root = "/Volumes/PART FAT/diff_completi/"
+    diff_root = "/Users/christian/Desktop/diff_completi/"
 
     for model in models:
         dd = DiffData(model, diff_root)

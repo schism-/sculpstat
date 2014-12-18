@@ -405,9 +405,9 @@ if __name__ == "__main__":
 
     obj_root = "/Volumes/Part Mac/obj_smooth_normals_files/"
     blend_root = "/Volumes/PART FAT/3ddata/"
-    diff_root = "/Volumes/PART FAT/diff_new/"
+    diff_root = "/Volumes/PART FAT/diff_completi/"
 
-    v = Viewer("elf", 0, None, obj_root, blend_root, diff_root)
+    v = Viewer("gargoyle", 862, None, obj_root, blend_root, diff_root)
 
     if True:
         v.mainLoop()

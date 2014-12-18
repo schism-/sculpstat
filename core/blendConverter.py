@@ -89,17 +89,13 @@ if __name__ == "__main__":
              ["ogre", "Plane"],
              ["sage", "Bust"]]
 
-    names = [["fighter", "Basemesh_FullbodyMale"]] # snap001264
-
-    names = [["gorilla", "Cube"],
-             ["man", "bust"],
-             ["merman", "Cube"]]
+    names = [["sage", "Bust"]] #snap001636
 
     for model_name, basemesh in names:
         #blend_dir = "../blend_files/"
         #obj_dir = "../obj2_files/"
-        blend_dir = "/Volumes/PART FAT/3ddata/"
-        obj_dir = "/Volumes/Part Mac/obj_smooth_normals_files/"
+        blend_dir = "/Users/christian/Desktop/"
+        obj_dir = "/Users/christian/Desktop/obj_smooth_normals_files/"
 
         start = time.time()
         bc = BlendConverter(blend_dir, obj_dir, model_name, 0, 5000, basemesh, "obj")

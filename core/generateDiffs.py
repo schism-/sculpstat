@@ -521,14 +521,14 @@ if __name__ == "__main__":
         ["sage",        0,      2136,   1,    "a"],
     '''
 
-    models = [  ["explorer",    0,      1858,   1,    "a"],
-                ["fighter",     0,      1608,   1,    "a"],
-                ["gargoyle",    0,      1058,   1,    "a"]]
+    models = [ ["sage",        1451,      2136,   1,    "a"]] # 1451
 
 
-    obj_files_path = "/Volumes/Part Mac/obj_smooth_normals_files/"
-    diff_files_path = "/Volumes/PART FAT/diff_completi/"
-    #diff_files_path = "/Users/christian/Desktop/Ph.D./sculptAnalysis/diff_new/"
+    #obj_files_path = "/Volumes/Part Mac/obj_smooth_normals_files/"
+    obj_files_path = "/Users/christian/Desktop/obj_smooth_normals_files/"
+
+    #diff_files_path = "/Volumes/PART FAT/diff_completi/"
+    diff_files_path = "/Users/christian/Desktop/diff_completi/"
 
 
     start = time.time()

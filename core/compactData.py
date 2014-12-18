@@ -26,6 +26,14 @@ def null_diff_data():
     diff_data["diff_bbox"] = None
     return diff_data
 
+def null_distance_data():
+    distance_data = {}
+    distance_data["distance_mean"] = None
+    distance_data["distance_variance"] = None
+    distance_data["distance_skewness"] = None
+    distance_data["distance_curtosis"] = None
+    return distance_data
+
 def null_brush_data():
     brush_data = {}
     brush_data["valid"] = False
@@ -89,6 +97,19 @@ def get_diff_data_step(diff_data, step_no):
     step_diff_data["deleted_curtosis"] = diff_data["deleted_curtosis"][step_no]
     return step_diff_data
 
+def get_distance_data_step(distance_data, step_no):
+    step_distance_data = {}
+    try:
+        step_distance_data["distance_mean"] = distance_data[step_no]["distance_mean"]
+        step_distance_data["distance_variance"] = distance_data[step_no]["distance_variance"]
+        step_distance_data["distance_skewness"] = distance_data[step_no]["distance_skewness"]
+        step_distance_data["distance_curtosis"] = distance_data[step_no]["distance_curtosis"]
+    except KeyError:
+        step_distance_data["distance_mean"] = None
+        step_distance_data["distance_variance"] = None
+        step_distance_data["distance_skewness"] = None
+        step_distance_data["distance_curtosis"] = None
+    return step_distance_data
 
 def get_centroid(points):
     acc = [0.0, 0.0, 0.0]
@@ -207,7 +228,9 @@ def normalize(v):
 
 def generate_final_data(model_names):
     """
-        For each step
+        Produces the final JSON, with all the data extracted from brush stroke and diff
+
+        For each step, it saves:
 
         final_data = {
             diff_data = {
@@ -241,6 +264,13 @@ def generate_final_data(model_names):
                 "lenghts"
                 "pressure"
             }
+
+            distance_data = {
+                "distance_mean"
+                "distance_variance"
+                "distance_skewness"
+                "distance_curtosis"
+            }
         }
     """
 
@@ -250,12 +280,14 @@ def generate_final_data(model_names):
         final_data = {}
         brush_data = common.load_json("../steps/" + model_name[0] + "/brush_data.json")
         diff_data  = common.load_json("../steps/" + model_name[0] + "/diff_plot_data.json")
+        distance_data  = common.load_json("../steps/" + model_name[0] + "/distance_data.json")
 
         final_data[0] = {
             "step_number" : 0,
             "valid" : brush_data['0']["valid"],
             "brush_data" : sanitize_brush_data(brush_data['0']),
-            "diff_data" : null_diff_data()
+            "diff_data" : null_diff_data(),
+            "distance_data" : null_distance_data()
         }
 
         for step_idx in range(1, len(brush_data)):
@@ -265,25 +297,84 @@ def generate_final_data(model_names):
             final_data[step_idx]["valid"] = brush_data[str(step_idx)]["valid"]
             final_data[step_idx]["brush_data"] = sanitize_brush_data(brush_data[str(step_idx)])
             final_data[step_idx]["diff_data"] = get_diff_data_step(diff_data, step_idx - 1)
+            final_data[step_idx]["distance_data"] = get_distance_data_step(distance_data, str(step_idx))
 
-        common.save_json(final_data, "../steps/" + model_name[0] + "/final_data.json", compressed=False)
+        common.save_json(final_data, "../final_data/" + model_name[0] + "/final_data.json", compressed=False)
+
+def distance_compressing(model_name, single_file=False):
+    '''
+
+    Produces the JSON for the data on mesh distances between steps
+
+    For every step, it saves:
+        - distance mean;
+        - distance variance;
+        - distance skewness;
+        - distance curtosis;
+
+    '''
+    if single_file:
+        file_name = "../steps/" + model_name[0] + "/distance_data.txt"
+
+        fh = open(file_name, 'r')
+
+        i = 0
+        distances = {}
+        idx = 0
+        for line in fh:
+            if i % 2 == 0:
+                idx = int(line)
+            else:
+                data = line.split(' ')
+                data = [float(el) for idx, el in enumerate(data) if idx % 2 == 1]
+                if data:
+                    np_data = numpy.array(data)
+                    distances[idx] = {}
+                    distances[idx]["distance_mean"] = numpy.mean(np_data, axis=0)
+                    distances[idx]["distance_variance"] = numpy.var(np_data, axis=0)
+                    distances[idx]["distance_skewness"] = scs.skew(np_data, axis=0)
+                    distances[idx]["distance_curtosis"] = scs.kurtosis(np_data, axis=0)
+                else:
+                    distances[idx] = {}
+                    distances[idx]["distance_mean"] = None
+                    distances[idx]["distance_variance"] = None
+                    distances[idx]["distance_skewness"] = None
+                    distances[idx]["distance_curtosis"] = None
+            i += 1
+        fh.close()
+        common.save_json(distances, "../steps/" + model_name[0] + "/distance_data.json", compressed=False)
+    else:
+        dir_name = "../steps/" + model_name[0] + "/dist_data/"
+
+        files = common.get_files_from_directory(dir_name)
+
+        distances = {}
+        for path, filename in files:
+            step = int(filename[4:])
+            fh = open(path, 'r')
+            dists = []
+            for line in fh:
+                data = line.split(' ')
+                dists.append(float(data[1].strip()))
+            if dists:
+                distances[step] = {}
+                distances[step]["distance_mean"] = numpy.mean(dists, axis=0)
+                distances[step]["distance_variance"] = numpy.var(dists, axis=0)
+                distances[step]["distance_skewness"] = scs.skew(dists, axis=0)
+                distances[step]["distance_curtosis"] = scs.kurtosis(dists, axis=0)
+            else:
+                distances[step] = {}
+                distances[step]["distance_mean"] = None
+                distances[step]["distance_variance"] = None
+                distances[step]["distance_skewness"] = None
+                distances[step]["distance_curtosis"] = None
+
+        common.save_json(distances, "../steps/" + model_name[0] + "/distance_data.json", compressed=False)
 
 
 def brush_compressing(model_names):
     '''
-        brush_data = {
-                "valid"
-                "size"
-                "mode"
-                "brush_number"
-                "paths"
-                "obboxes"
-                "aabboxes"
-                "lenghts"
-                "pressure"
-                "pressure stats"
-                "path stats"
-            }
+        Saves a flattened version of the brush data (for Weka analysis and such)
     '''
 
     feature_vectors = {}
@@ -368,12 +459,9 @@ if __name__ == "__main__":
         ["sage",     2136]
     ]
 
-    models = [
-        ["explorer", 1858],
-        ["fighter",  1608],
-        ["gargoyle", 1058]
-    ]
-
-    # diff_compressing("/Volumes/PART FAT/diff_new/", models)
     # brush_compressing(models)
+
     generate_final_data(models)
+
+    #for model_name in models:
+    #    distance_compressing(model_name, False)

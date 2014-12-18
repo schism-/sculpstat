@@ -8,3 +8,14 @@ utility/__pycache__/*
 diff/*
 diff_new/*
 obj2_files/*
+final_data/elder/final_data.json
+final_data/engineer/final_data.json
+final_data/explorer/final_data.json
+final_data/fighter/final_data.json
+final_data/gargoyle/final_data.json
+final_data/gorilla/final_data.json
+final_data/man/final_data.json
+final_data/merman/final_data.json
+final_data/monster/final_data.json
+final_data/ogre/final_data.json
+final_data/sage/final_data.json
