@@ -134,12 +134,19 @@ class BrushData(object):
             path = path[:-zeroes]
         return path
 
+    @staticmethod
+    def get2DPath(stroke_op):
+        path = []
+        for point in stroke_op["stroke"]:
+            path.append([float(point["mouse"][0]), float(point["mouse"][1])])
+        lenght = BrushData.get_path_length(path)
+        return path, lenght
 
     @staticmethod
     def get_path_length(path):
         l = 0.0
         for k in range(len(path) - 1):
-            l += numpy.linalg.norm(path[k+1] - path[k])
+            l += numpy.linalg.norm(numpy.array(path[k+1]) - numpy.array(path[k]))
         return l
 
 
@@ -295,6 +302,31 @@ class BrushData(object):
             ret_data[k] = self.extract_data_single(k)
         return ret_data
 
+    def extract_brush_type(self):
+        ret_data = {}
+        current_brush = "DRAW"
+        for k in range(self.max_step + 1):
+            print(str(k), '/', str(self.max_step), '--- ')
+            if str(k) in self.steps:
+                step_ops = self.steps[str(k)]
+                for op in step_ops:
+                    if "op_name" in op and op["op_name"] == "bpy.ops.paint.brush_select":
+                        # we have a new brush
+                        current_brush = op["sculpt_tool"]
+            ret_data[k] = current_brush
+        return ret_data
+
+    def extract_brush_2d_position(self):
+        ret_data = {}
+        for k in range(self.max_step + 1):
+            if str(k) in self.steps:
+                print(str(k), '/', str(self.max_step), '--- '),
+                step_ops = self.steps[str(k)]
+                for op in step_ops:
+                    if "op_name" in op and op["op_name"] == "bpy.ops.sculpt.brush_stroke":
+                        path, lenght = BrushData.get2DPath(op)
+                        ret_data[k] = {"path":path, "lenght":lenght}
+        return ret_data
 
     def extract_data_single(self, step_no):
         '''
@@ -411,18 +443,16 @@ if __name__ == "__main__":
         ["gorilla",  2719],
         ["man",      1580],
         ["merman",   2619],
-        ["sage",     2136]
-    ]
-
-    models = [
         ["monster", 967],
-        ["ogre", 1720]
+        ["ogre", 1720],
+        ["sage",     2136]
     ]
 
     for model_name, max_step in models:
         bd = BrushData(model_name, max_step)
-        data = bd.extract_data()
-
-        out = open("../steps/" + bd.model_name + "/brush_data.json", "w")
+        #data = bd.extract_brush_type()
+        data = bd.extract_brush_2d_position()
+        print("Extracting from " + model_name)
+        out = open("../steps/" + bd.model_name + "/brush_2d_pos.json", "w")
         json.dump(data, out, indent=2, sort_keys=True)
         out.close()

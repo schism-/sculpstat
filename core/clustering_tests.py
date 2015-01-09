@@ -195,6 +195,7 @@ for method in methods:
             #----------------------------------------------------------------------
             #                             saving image
             #----------------------------------------------------------------------
+            '''
             root_images = "../images/" + model_name + "/"
             if not os.path.exists(root_images):
                 os.makedirs(root_images)
@@ -206,5 +207,6 @@ for method in methods:
                 file_name += str(n_clusters_) + str(n_clusters_pca) + "c_"
             file_name += str(dimensions_no) + ".pdf"
             plt.savefig(root_images + file_name)
+            '''
 
 plt.show()

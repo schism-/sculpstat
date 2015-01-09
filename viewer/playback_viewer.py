@@ -181,7 +181,7 @@ class Viewer(object):
 
     def loadBrushStrokes(self, step_path, stepno, window=None):
         try:
-            step_ops = self.steps[str(stepno +  1)]
+            step_ops = self.steps[str(stepno)]
             stroke_ops = []
             for op in step_ops:
                 if op["op_name"] == "bpy.ops.sculpt.brush_stroke":
@@ -407,7 +407,7 @@ if __name__ == "__main__":
     blend_root = "/Volumes/PART FAT/3ddata/"
     diff_root = "/Volumes/PART FAT/diff_completi/"
 
-    v = Viewer("gargoyle", 862, None, obj_root, blend_root, diff_root)
+    v = Viewer("monster", 770, None, obj_root, blend_root, diff_root)
 
     if True:
         v.mainLoop()

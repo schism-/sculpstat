@@ -68,13 +68,13 @@ class DistanceData(object):
             "engineer":        2.03795,
             "explorer":        17.2768,
             "fighter":         2.0678,
-            "gargoyle":        10.5912,
             "gorilla":         12.3074,
+            "gargoyle":        10.5912,
             "man":             4.38392,
             "merman":          4.90317,
             "monster":         6.87775,
-            "ogre":            20.0907,
-            "sage":            4.91853
+            "sage":            4.91853,
+            "ogre":            20.0907
         }
 
         #open mesh data

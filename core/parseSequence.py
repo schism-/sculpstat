@@ -78,15 +78,17 @@ def parse_single_step_to_json(line_data):
                 'bpy.ops.view3d.zoom',
                 'bpy.ops.wm.save_as_mainfile']
 
-    parse = ['bpy.ops.sculpt.brush_stroke',
-             'bpy.ops.wm.radial_control',
-             'bpy.ops.paint.brush_select',
-             'bpy.ops.view3d.move',
-             'bpy.ops.view3d.rotate',
-             'bpy.ops.view3d.zoom',
-             'bpy.ops.view3d.properties',
-             'bpy.ops.view3d.view_orbit',
-             'bpy.ops.ed.undo']
+    parse = ["bpy.ops.view3d.view_all",
+             "bpy.ops.view3d.view_center_camera",
+             "bpy.ops.view3d.view_center_cursor",
+             "bpy.ops.view3d.view_orbit",
+             "bpy.ops.view3d.view_pan",
+             "bpy.ops.view3d.view_persportho",
+             "bpy.ops.view3d.view_selected",
+             "bpy.ops.view3d.viewnumpad",
+             "bpy.ops.view3d.zoom",
+             "bpy.ops.view3d.zoom_border"
+    ]
 
     argument_label_re_pattern = "([a-zA-z]+)="
     arguments_list_pattern = "\((.+)\)"
@@ -246,6 +248,6 @@ if __name__ == "__main__":
         #        print(str(op)[:100])
         # out = open("../steps/" + model_name + "/steps_clust"+ str(steps) +".json", "w")
 
-        out = open("../steps/" + model_name + "/steps.json", "w")
+        out = open("../steps/" + model_name + "/camera_movements.json", "w")
         json.dump(filtered_data, out, sort_keys=True, indent=2)
         out.close()

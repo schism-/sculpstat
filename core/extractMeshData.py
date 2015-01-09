@@ -72,10 +72,10 @@ if __name__ == "__main__":
     '''
 
     model_names = [
-        "sage"
+        "man"
     ]
 
     for mn in model_names:
-        #md = MeshData(mn, obj_path="/Volumes/Part Mac/obj_smooth_normals_files/")
-        md = MeshData(mn, obj_path="/Users/christian/Desktop/obj_smooth_normals_files/")
+        md = MeshData(mn, obj_path="/Volumes/Part Mac/obj_smooth_normals_files/")
+        #md = MeshData(mn, obj_path="/Users/christian/Desktop/obj_smooth_normals_files/")
         mesh_data = md.extract_data()

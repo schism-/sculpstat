@@ -22,12 +22,13 @@ class Data:
         if not self.data:
             raise TypeError("Error in unpacking data")
         self.clabel = 99999 # unclustered
+        self.clustered = False
 
     def __str__(self):
         return "%d) %.2f %.2f %.2f %s" % (self.id, self.x, self.y, self.z, self.data)
 
     def __repr__(self):
-        return "(id=%d x=%.2f y=%.2f z=%.2f data=%s)" % (self.id, self.x, self.y, self.z, self.data)
+        return "(id=%d time=%d x=%.2f y=%.2f z=%.2f data=%s)" % (self.id, self.time, self.x, self.y, self.z, self.data)
 
     def unpack(self, features):
         if self.type == "b":
@@ -38,7 +39,7 @@ class Data:
                 # path centroid
                 pos = features["centroids"][0]
 
-                pos = features["obboxes"][0][0]
+                #pos = features["obboxes"][0][0]
 
                 # 0 - path lenght
                 data.append(features["lenghts"][0])
@@ -153,6 +154,7 @@ class STDBSCAN(object):
         self.unclustered = 99999
         self.cluster_label = 0
         self.data = Data.load_data(self.data_filename)
+        self.noised = []
         self.min_pts = self.estimate_min_pts()
         self.max_eps1 = self.estimate_eps1()
         self.max_eps2 = self.estimate_eps2()
@@ -265,60 +267,58 @@ class STDBSCAN(object):
 
     def retrieve_neighbours(self, x):
         Y = []
-        for obj in self.data:
+        for idx, obj in enumerate(self.data):
             if obj.id == x.id:
                 continue
             else:
                 e1 = self.eps1(x, obj)
                 e2 = self.eps2(x, obj)
                 # print(e1, e2)
-                if e1 < self.max_eps1 and e2 < self.max_eps2 and abs(obj.time - x.time) <= self.time_window:
-                    Y.append(obj)
+                if e1 < self.max_eps1 and e2 < self.max_eps2: # and (abs(obj.time - x.time) < self.time_window):
+                    #print(abs(obj.time - x.time))
+                    Y.append(idx)
         return Y
 
 
-    def clusterize(self):
+    def clusterize_old(self, prefix=""):
         clusters = {}
-        for obj in self.data:
-            if obj.clabel == self.unclustered:
-                X = self.retrieve_neighbours(obj)
+        for obj_idx, obj in enumerate(self.data):
+            if not self.data[obj_idx].clustered:
+                X = self.retrieve_neighbours(self.data[obj_idx])
                 if len(X) < self.min_pts:
-                    obj.clabel = self.noise
+                    self.data[obj_idx].clabel = self.noise
+                    self.noised.append(obj_idx)
                 else:
                     self.cluster_label += 1
-                    print("found a new cluster (%d)" % self.cluster_label)
+                    self.data[obj_idx].clabel = self.cluster_label
+                    self.data[obj_idx].clustered = True
+                    clusters[self.cluster_label] = [self.data[obj_idx].id]
 
-                    obj.clabel = self.cluster_label
-
-                    clusters[self.cluster_label] = [obj.id]
-
-                    for X_obj in X:
-                        if X_obj.clabel != self.noise and X_obj.clabel != self.unclustered:
-                            pass
+                    for idx_X_obj in X:
+                        if self.data[idx_X_obj].clustered:
+                            continue
                         else:
-                            X_obj.clabel = self.cluster_label
-                            clusters[self.cluster_label].append(X_obj.id)
-                    stack = X
+                            self.data[idx_X_obj].clabel = self.cluster_label
+                            self.data[idx_X_obj].clustered = True
+                            clusters[self.cluster_label].append(self.data[idx_X_obj].id)
+                    stack = X[:]
 
                     while len(stack) > 0:
-                        stack_obj = stack.pop(0)
+                        stack_obj_idx = stack.pop(0)
 
-                        stack_X = self.retrieve_neighbours(stack_obj)
+                        stack_X = self.retrieve_neighbours(self.data[stack_obj_idx])
 
                         if len(stack_X) >= self.min_pts:
-                            for stack_X_obj in stack_X:
-                                if (stack_X_obj.clabel != self.noise or stack_X_obj.clabel == self.unclustered) \
-                                        and stack_X_obj.clabel != self.cluster_label:
+                            for stack_X_obj_idx in stack_X:
+                                if not self.data[stack_X_obj_idx].clustered or not self.data[stack_X_obj_idx].clabel == self.noise:
+                                    if self.data[stack_X_obj_idx].clabel != self.cluster_label:
+                                        self.data[stack_X_obj_idx].clabel = self.cluster_label
+                                        self.data[stack_X_obj_idx].clustered = True
 
-                                    if stack_X_obj.clabel != self.noise and stack_X_obj.clabel != self.unclustered:
-                                        continue
+                                        clusters[self.cluster_label].append(self.data[stack_X_obj_idx].id)
 
-                                    stack_X_obj.clabel = self.cluster_label
-
-                                    clusters[self.cluster_label].append(stack_X_obj.id)
-
-                                    if stack_X_obj not in stack:
-                                        stack.append(stack_X_obj)
+                                        if stack_X_obj_idx not in stack:
+                                            stack.append(stack_X_obj_idx)
 
         acc = 0
         labels = [None, ] * len(self.data)
@@ -327,7 +327,6 @@ class STDBSCAN(object):
         for c in clusters:
             print("Cluster no %s [len = %d]" % (c, len(clusters[c])))
             acc += len(clusters[c])
-            #print(clusters[c])
             for el in clusters[c]:
                 labels[el] = c
 
@@ -354,63 +353,298 @@ class STDBSCAN(object):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
-        fh = open(save_dir + "bb_centroid_pos", 'wb')
+        fh = open(save_dir + prefix + "_centroid_pos", 'wb')
         np.save(fh, centroid_pos)
         fh.close()
-        fh = open(save_dir + "bb_labels", 'wb')
+        fh = open(save_dir + prefix + "_labels", 'wb')
         np.save(fh, labels)
         fh.close()
-        fh = open(save_dir + "bb_raw_data", 'wb')
+        fh = open(save_dir + prefix + "_raw_data", 'wb')
         np.save(fh, raw_data)
         fh.close()
 
-        #fig = plt.figure(figsize=(9, 9))
-        #plot_clustering_scatter(centroid_pos, labels, raw_data, title="[meanshift] pos with no dim reduction", fig=fig, subplot_idx=111)
-        #plt.show()
+    def clusterize(self, prefix=""):
+        clusters = {}
+        times = {}
+        for obj in self.data:
+            if not obj.clustered:
+                X = self.retrieve_neighbours(obj)
+                if len(X) < self.min_pts:
+                    obj.clabel = self.noise
+                    self.noised.append(obj.id)
+                else:
+                    self.cluster_label += 1
+                    cl_times = []
+                    print("found clust %s" % self.cluster_label)
 
-    def visualize(self):
+                    obj.clabel = self.cluster_label
+                    obj.clustered = True
+                    clusters[self.cluster_label] = [obj.id]
+                    cl_times.append(obj.time)
+
+                    for idx_X_obj in X:
+                        if self.data[idx_X_obj].clustered:
+                            continue
+                        else:
+                            self.data[idx_X_obj].clabel = self.cluster_label
+                            self.data[idx_X_obj].clustered = True
+                            clusters[self.cluster_label].append(self.data[idx_X_obj].id)
+                            cl_times.append(self.data[idx_X_obj].time)
+                    stack = X[:]
+
+                    while len(stack) > 0:
+                        stack_obj_idx = stack.pop(0)
+
+                        stack_X = self.retrieve_neighbours(self.data[stack_obj_idx])
+
+                        if len(stack_X) >= self.min_pts:
+                            for stack_X_obj_idx in stack_X:
+                                if not self.data[stack_X_obj_idx].clustered or not self.data[stack_X_obj_idx].clabel == self.noise:
+                                    if self.data[stack_X_obj_idx].clabel != self.cluster_label:
+                                        self.data[stack_X_obj_idx].clabel = self.cluster_label
+                                        self.data[stack_X_obj_idx].clustered = True
+                                        cl_times.append(self.data[stack_X_obj_idx].time)
+
+                                        clusters[self.cluster_label].append(self.data[stack_X_obj_idx].id)
+
+                                        if stack_X_obj_idx not in stack:
+                                            stack.append(stack_X_obj_idx)
+                    print(cl_times)
+                    times[self.cluster_label] = cl_times
+
+
+        acc = 0
+        labels = [None, ] * len(self.data)
+        centroid_pos = [None, ] * len(self.data)
+        raw_data = [None, ] * len(self.data)
+        for c in clusters:
+            print("Cluster no %s [len = %d]" % (c, len(clusters[c])))
+            acc += len(clusters[c])
+            for el in clusters[c]:
+                labels[el] = c
+
+        noise = [obj for obj in self.data if obj.clabel == self.noise]
+
+        print("Noised [len = %d]" % (len(noise)))
+        acc += len(noise)
+        print("Total instances: %d" % acc)
+
+        for idx in range(len(labels)):
+            if not labels[idx]:
+                labels[idx] = len(clusters) + 1
+
+        for obj in self.data:
+            centroid_pos[obj.id] = [obj.x, obj.y, obj.z]
+            raw_data[obj.id] = obj.data[:]
+
+        centroid_pos = np.array(centroid_pos)
+        labels = np.array(labels)
+        raw_data = np.array(raw_data)
+
+        # saving clustering data
+        save_dir = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/clustering/" + self.model_name + "/"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        fh = open(save_dir + prefix + "_centroid_pos", 'wb')
+        np.save(fh, centroid_pos)
+        fh.close()
+        fh = open(save_dir + prefix + "_labels", 'wb')
+        np.save(fh, labels)
+        fh.close()
+        fh = open(save_dir + prefix + "_raw_data", 'wb')
+        np.save(fh, raw_data)
+        fh.close()
+
+        common.save_json(times, save_dir + prefix + "_times.json", compressed=False)
+
+    def visualize(self, show=False, save_image=True, prefix=""):
         load_dir = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/clustering/" + self.model_name + "/"
 
-        fh = open(load_dir + "bb_centroid_pos", 'rb')
+        fh = open(load_dir + prefix + "_centroid_pos", 'rb')
         centroid_pos = np.load(fh)
         fh.close()
 
-        fh = open(load_dir + "bb_labels", 'rb')
+        fh = open(load_dir + prefix + "_labels", 'rb')
         labels = np.load(fh)
         fh.close()
 
-        fh = open(load_dir + "bb_raw_data", 'rb')
+        fh = open(load_dir + prefix + "_raw_data", 'rb')
         raw_data = np.load(fh)
         fh.close()
 
-        fig = plt.figure(figsize=(9, 9))
-        plot_clustering_scatter(centroid_pos, labels, raw_data, title="[meanshift] pos with no dim reduction", fig=fig, subplot_idx=111)
-        plt.show()
+        cluster_timings = common.load_json(load_dir + prefix + "_times.json")
 
-def plot_clustering_scatter(X_red, labels, raw_data, title=None, force_idx=(0,1,2), fig=None, subplot_idx=321):
-    x_min, x_max = np.min(X_red, axis=0), np.max(X_red, axis=0)
-    X_red = (X_red - x_min) / (x_max - x_min)
+        noise = []
+        for obj in self.data:
+            noise.append(obj.time)
+
+        max_time = -1
+        for c in cluster_timings:
+            for el in cluster_timings[c]:
+                max_time = max(max_time, el)
+                if el in noise:
+                    noise.remove(el)
+
+        for el in noise:
+            max_time = max(max_time, el)
+
+        fig2 = plt.figure(figsize=(22, 10), facecolor="white")
+        cols = int(math.sqrt(len(cluster_timings) + 1))
+        rows = ((len(cluster_timings) + 1)// cols) + 1
+        for c_idx in cluster_timings:
+            cl_time = np.array(cluster_timings[c_idx])
+
+            print("%d%d%d" % (rows, cols, int(c_idx)))
+
+            ax = fig2.add_subplot(rows, cols, int(c_idx))
+
+            n, bin, patches = ax.hist(cl_time,
+                                      bins=30,
+                                      range=(0, max_time),
+                                      color=plt.cm.spectral(float(int(c_idx)) / (len(cluster_timings) + 1)))
+
+            plt.title("C%s [%d, m=%.2f, v=%.2f]" % (c_idx,
+                                                    len(cl_time),
+                                                    np.mean(cl_time),
+                                                    np.std(cl_time))
+            )
+
+        ax = fig2.add_subplot(rows, cols, len(cluster_timings) + 1)
+        n, bin, patches = ax.hist(noise,
+                                  bins=30,
+                                  range=(0, max_time),
+                                  color=plt.cm.spectral(1.0))
+
+        fig2.tight_layout()
+
+        if save_image:
+            root_images = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/results/"
+            common.make_dirs(root_images)
+            plt.savefig(root_images + self.model_name + "_st-dbscan-" + prefix + "_times.png")
+
+        fig = plt.figure(figsize=(22, 10), facecolor="white")
+        plot_clustering_scatter(centroid_pos, labels, raw_data,
+                                title="[%s] st-dbscan" % self.model_name,
+                                fig=fig,
+                                subplot_idx=111,
+                                model_name=self.model_name,
+                                save_image=save_image,
+                                prefix=prefix)
+        if show:
+            plt.show()
+
+    def save_point_cloud(self, prefix=""):
+        load_dir = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/clustering/" + self.model_name + "/"
+
+        fh = open(load_dir + prefix + "_centroid_pos", 'rb')
+        centroid_pos = np.load(fh)
+        fh.close()
+
+        fh = open(load_dir + prefix + "_labels", 'rb')
+        labels = np.load(fh)
+        fh.close()
+
+        fh_out = open(load_dir + "point_cloud.ply", "w")
+
+        header = "ply\n" +\
+                  "format ascii 1.0\n" +\
+                  "element vertex " + str(len(centroid_pos)) + "\n" +\
+                  "property float x\n" +\
+                  "property float y\n" +\
+                  "property float z\n" +\
+                  "property uchar red\n" +\
+                  "property uchar green\n" +\
+                  "property uchar blue\n" +\
+                  "property uchar alpha\n" +\
+                  "end_header\n"
+
+        fh_out.write(header)
+
+        for idx in range(len(centroid_pos)):
+            col = plt.cm.spectral(float(labels[idx]) / (len(set(labels))))
+            '''
+            fh_out.write("%f %f %f %f %f %f 255.0\n" %( centroid_pos[idx][0],
+                                                      centroid_pos[idx][1],
+                                                      centroid_pos[idx][2],
+                                                      255.0 * col[0],
+                                                      255.0 * col[1],
+                                                      255.0 * col[2]))
+                                                      '''
+            fh_out.write("%f %f %f %d %d %d 255\n" %( centroid_pos[idx][0],
+                                                      centroid_pos[idx][1],
+                                                      centroid_pos[idx][2],
+                                                      int(255.0 * col[0]),
+                                                      int(255.0 * col[1]),
+                                                      int(255.0 * col[2])))
+
+
+        fh_out.close()
+
+def plot_clustering_scatter(positions, labels, raw_data, title=None, fig=None,
+                            subplot_idx=321, model_name=None, save_image=True, prefix=""):
 
     ax = fig.add_subplot(subplot_idx, projection='3d')
-    #ax = Axes3D(ax1, rect=[0, 0, 0.95, 1], elev=0, azim=-90)
 
     d = raw_data[:,5]
     c = normalize(d[:,np.newaxis], axis=0).ravel()
 
-    ax.scatter(X_red[:, force_idx[0]], -1.0 * X_red[:, force_idx[2]],  X_red[:, force_idx[1]],
-               c=labels, cmap=plt.get_cmap("Paired"), s=c * 1500.0)
+    clusters_idx = set(labels)
 
-    ax.view_init(elev=0, azim=-90)
+    scatters = []
+    for c_idx in clusters_idx:
+        points = positions[labels == c_idx]
+        x = ax.scatter(points[:,0],
+                       -1.0 * points[:,2],
+                       points[:,1],
+                       s = c[labels == c_idx] * 1500.0,
+                       color=plt.cm.spectral(float(c_idx)/(len(clusters_idx))),
+                       label="Cluster %d [%d]" % (c_idx, len(points)),
+                       alpha=0.5
+                       )
+        scatters.append(x)
 
-    ax.set_autoscale_on(False)
+    ax.view_init(elev=10, azim=-80)
+    ax.dist = 7
+
+    ax.grid(False)
+
+    ax.legend(
+        bbox_to_anchor=(1.05, 1),
+        loc=2,
+        borderaxespad=0.1,
+        fontsize="small",
+        ncol=2
+    )
+
+    ax.set_position([0.05,0.05,0.7,0.9])
+
+    pos_mean = np.mean(positions, axis=0)
+
+    X = positions[:,0]
+    Y = -1.0 * positions[:,2]
+    Z = positions[:,1]
+    max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max() / 2.0
+
+    ax.set_xlim(pos_mean[0] - max_range, pos_mean[0] + max_range)
+    ax.set_ylim(pos_mean[2] - max_range, pos_mean[2] + max_range)
+    ax.set_zlim(pos_mean[1] - max_range, pos_mean[1] + max_range)
 
     if title is not None:
         plt.title(title, size=17)
 
+    if save_image:
+        root_images = "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/results/"
+        common.make_dirs(root_images)
+        plt.savefig(root_images + model_name + "_st-dbscan-" + prefix + ".png")
+
 if __name__ == "__main__":
+    model_names = ["elder", "engineer", "explorer", "fighter", "gargoyle", "gorilla", "merman", "monster", "ogre", "sage", "man"]
+
     model_names = ["elder", "engineer", "explorer", "fighter", "gargoyle", "gorilla", "merman", "monster", "ogre", "sage", "man"]
 
     for model in model_names:
         stdbs = STDBSCAN(model)
-        #stdbs.clusterize()
-        stdbs.visualize()
+        #stdbs.clusterize(prefix="notime")
+        #stdbs.visualize(show=True, save_image=False, prefix="newsqrttime")
+        #stdbs.save_point_cloud(prefix='newsqrttime')

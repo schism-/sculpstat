@@ -470,6 +470,117 @@ def final_data_flattening(model_name):
                      save_path + "flattened_data.json",
                      compressed=False)
 
+def add_brush_type_to_final(model_name):
+    final_data = common.load_json("/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json")
+    brush_type_data = common.load_json("../steps/" + model_name[0] + "/brush_type_new.json")
+
+    for step in final_data:
+        print("%s / %d" % (step, len(final_data) - 1), )
+        final_data[step]["brush_data"]["brush_type"] = brush_type_data[step]
+
+    common.save_json(final_data,
+                     "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json",
+                     compressed=False)
+
+def add_brush_category_to_final(model_name):
+    final_data = common.load_json("/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json")
+
+    on_surface = ['BLOB',
+              'CLAY',
+              'CLAY_STRIPS',
+              'CREASE',
+              'DRAW',
+              'FLATTEN',
+              'INFLATE',
+              'LAYER',
+              'PINCH',
+              'SCRAPE',
+              'SMOOTH']
+
+    global_brush = ['GRAB',
+                    'SNAKE_HOOK']
+
+    mask_brush = ['MASK']
+
+    for step in final_data:
+        print("%s / %d" % (step, len(final_data) - 1), )
+        if final_data[step]["brush_data"]["brush_type"] in on_surface:
+            final_data[step]["brush_data"]["brush_category"] = "ON_SURFACE"
+        elif final_data[step]["brush_data"]["brush_type"] in global_brush:
+            final_data[step]["brush_data"]["brush_category"] = "GLOBAL"
+        elif final_data[step]["brush_data"]["brush_type"] in mask_brush:
+            final_data[step]["brush_data"]["brush_category"] = "MASK"
+
+    common.save_json(final_data,
+                     "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json",
+                     compressed=False)
+
+def add_brush_2d_pos_to_final(model_name):
+    final_data = common.load_json("/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_2.json")
+    brush_2d_pos_data = common.load_json("../steps/" + model_name[0] + "/brush_2d_pos.json")
+
+    for step in final_data:
+        print("%s / %d" % (step, len(final_data) - 1),),
+        if step in brush_2d_pos_data:
+            final_data[step]["brush_data"]["brush_2d_pos"] = brush_2d_pos_data[step]["path"]
+            final_data[step]["brush_data"]["lenght_2d"] = brush_2d_pos_data[step]["lenght"]
+        elif final_data[step]["brush_data"]["valid"]:
+            print("############# ERROR #############")
+
+    common.save_json(final_data,
+                     "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json",
+                     compressed=False)
+
+def angle_between(v1, v2):
+    v1_u = v1 / numpy.linalg.norm(v1)
+    v2_u = v2 / numpy.linalg.norm(v2)
+    angle = numpy.arccos(numpy.dot(v1_u, v2_u))
+    if numpy.isnan(angle):
+        if (v1_u == v2_u).all():
+            return 0.0
+        else:
+            return numpy.pi
+    return angle
+
+def get_2d_angles(brush_data, filtered=False):
+    angles = []
+    if filtered:
+        f = []
+        for el in brush_data["brush_2d_pos"]:
+            el = tuple(el)
+            if el not in f:
+                f.append(el)
+        path_points = numpy.array(f)
+    else:
+        path_points = numpy.array(brush_data["brush_2d_pos"])
+
+    if len(path_points) >= 3:
+        for k in range(len(path_points)-2):
+            p0 = path_points[k]
+            p1 = path_points[k+1]
+            p2 = path_points[k+2]
+
+            v0 = numpy.array(p1) - numpy.array(p0)
+            v1 = numpy.array(p2) - numpy.array(p1)
+
+            angles.append(angle_between(v0, v1))
+    return angles
+
+def add_brush_2d_angle_to_final(model_name):
+    final_data = common.load_json("/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json")
+
+    for step in final_data:
+        print("%s / %d" % (step, len(final_data) - 1),)
+        if final_data[step]["brush_data"]["valid"]:
+            final_data[step]["brush_data"]["brush_2d_angles"] = get_2d_angles(final_data[step]["brush_data"])
+            final_data[step]["brush_data"]["brush_2d_angles_filtered"] = get_2d_angles(final_data[step]["brush_data"], True)
+
+    common.save_json(final_data,
+                     "/Users/christian/Desktop/Ph.D./sculptAnalysis_final_data/complete/" + model_name[0] + "/final_data_3.json",
+                     compressed=False)
+
+
+
 
 if __name__ == "__main__":
     '''
@@ -491,7 +602,9 @@ if __name__ == "__main__":
     '''
 
     models = [
+        ["alien",    2216],
         ["elder",    3119],
+        ["elf",      4307],
         ["engineer",  987],
         ["explorer", 1858],
         ["fighter",  1608],
@@ -504,12 +617,14 @@ if __name__ == "__main__":
         ["sage",     2136]
     ]
 
-    # brush_flattening(models)
-
+    #brush_flattening(models)
     #generate_final_data(models)
 
-    #for model_name in models:
-    #    distance_compressing(model_name, False)
-
     for model_name in models:
-        final_data_flattening(model_name)
+        #distance_compressing(model_name, False)
+        #final_data_flattening(model_name)
+        #add_brush_type_to_final(model_name)
+        #add_brush_category_to_final(model_name)
+        add_brush_2d_angle_to_final(model_name)
+        #add_brush_2d_pos_to_final(model_name)
+
